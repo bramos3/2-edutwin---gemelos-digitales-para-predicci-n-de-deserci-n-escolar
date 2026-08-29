@@ -280,20 +280,6 @@ export default function App() {
             <span className="truncate">{language === 'es' ? 'Auditoría de Sesgo & Ética' : 'Bias Audit & Ethics'}</span>
           </button>
 
-          <button
-            onClick={() => {
-              setCurrentTab('techDocs');
-              setIsSidebarOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
-              currentTab === 'techDocs'
-                ? 'bg-indigo-600/15 text-indigo-400 border-l-2 border-indigo-600 font-medium'
-                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Code2 className="w-3.5 h-3.5 text-slate-400" />
-            <span className="truncate">{language === 'es' ? 'Arquitectura del Sistema' : 'System Architecture'}</span>
-          </button>
         </nav>
 
         {/* Sidebar Telemetry & Quick Settings */}

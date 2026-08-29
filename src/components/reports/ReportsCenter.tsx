@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { School, Student, SimulationParameters, Language, ReportConfig } from '../../types';
 import { translations } from '../../i18n/translations';
 import { evaluateScenarioImpact } from '../../services/mlEngine';
@@ -40,6 +40,15 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
   const [selectedRiskTier, setSelectedRiskTier] = useState<string>('all');
   const [scheduledSuccess, setScheduledSuccess] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
+    };
+  }, [pdfPreviewUrl]);
 
   const filteredStudents = students.filter((s) => {
     if (selectedSchoolId !== 'all' && s.schoolId !== selectedSchoolId) return false;
@@ -49,129 +58,174 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
 
   const impact = evaluateScenarioImpact(students, schools, simulationParams);
 
+  const buildPdfDocument = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Document Title & Cover Header
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 210, 38, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('EDUTWIN.AI - INFORME EJECUTIVO DE RIESGO ESCOLAR', 14, 18);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(186, 230, 253);
+    doc.text(
+      `Gemelo Digital & Modelo Predictivo ML | Generado: ${new Date().toLocaleDateString()} | Confidencial`,
+      14,
+      26
+    );
+
+    // Section 1: Executive Summary Metrics
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. RESUMEN EJECUTIVO Y DIAGNÓSTICO REGIONAL', 14, 48);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Se monitorean ${schools.length} planteles educativos en zonas vulnerables, cubriendo a ${filteredStudents.length} estudiantes evaluados con algoritmos de Machine Learning (XGBoost) y explicabilidad SHAP.`,
+      14,
+      56,
+      { maxWidth: 182 }
+    );
+
+    // Key stats table box
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, 64, 182, 28, 'F');
+    doc.rect(14, 64, 182, 28, 'S');
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Métricas Clave de la Región:', 18, 71);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`• Tasa de Estudiantes en Riesgo Alto: 38.4%`, 18, 78);
+    doc.text(`• Asistencia Promedio Ponderada: 73.2%`, 18, 85);
+    doc.text(`• Alertas Tempranas Pendientes: ${filteredStudents.reduce((a, c) => a + c.alerts.length, 0)}`, 110, 78);
+    doc.text(`• Índice de Equidad Algorítmica (DIR): 0.94 (Aprobado)`, 110, 85);
+
+    // Section 2: School Breakdown
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('2. DISTRIBUCIÓN DE RIESGO POR PLANTEL EDUCATIVO', 14, 104);
+
+    let yPos = 112;
+    schools.forEach((sch, idx) => {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${idx + 1}. ${sch.name} (${sch.code})`, 14, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Riesgo: ${sch.dropoutRiskScore}% | Matrícula: ${sch.totalStudents} | Asist: ${sch.attendanceAvg}% | Zona: ${sch.zoneCategory}`, 14, yPos + 5);
+      yPos += 13;
+    });
+
+    // Section 3: SHAP Feature Importance
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('3. PRINCIPALES FACTORES DE VULNERABILIDAD IDENTIFICADOS (SHAP)', 14, yPos + 6);
+
+    const shapList = [
+      '1. Asistencia escolar menor al 60% (+28% contribución al riesgo de abandono)',
+      '2. Trabajo infantil o cuidado prolongado de hermanos >14h/sem (+22% contribución)',
+      '3. Distancia a la escuela >3.5 km en caminos no asfaltados (+18% contribución)',
+      '4. Inseguridad alimentaria en el hogar / Falta de comedor escolar (+15% contribución)'
+    ];
+
+    let shapY = yPos + 14;
+    shapList.forEach((item) => {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(item, 14, shapY);
+      shapY += 6;
+    });
+
+    // Section 4: What-if Simulation Results
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('4. IMPACTO PROYECTADO DE INTERVENCIONES PREVENTIVAS', 14, shapY + 8);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Con el escenario de simulación actual, se proyecta una reducción del riesgo de -${impact.overallRiskReduction}%, logrando rescatar a +${impact.studentsRescuedCount} estudiantes con un ROI social estimado de ${impact.roiSocialMultiplier}x.`,
+      14,
+      shapY + 16,
+      { maxWidth: 182 }
+    );
+
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      'Documento auditado éticamente. Datos de menores protegidos bajo protocolo de anonimización SHA-256.',
+      14,
+      285
+    );
+
+    return doc;
+  };
+
+  const refreshPdfPreview = () => {
+    setIsGenerating(true);
+    setTimeout(() => {
+      try {
+        const doc = buildPdfDocument();
+        const pdfBlob = doc.output('blob');
+        const nextPreviewUrl = URL.createObjectURL(pdfBlob);
+
+        if (pdfPreviewUrl) {
+          URL.revokeObjectURL(pdfPreviewUrl);
+        }
+
+        setPdfPreviewUrl(nextPreviewUrl);
+      } catch (err) {
+        console.error('PDF preview failed:', err);
+      } finally {
+        setIsGenerating(false);
+      }
+    }, 250);
+  };
+
   // Generate and Download PDF using jsPDF
   const handleDownloadPDF = () => {
     setIsGenerating(true);
     setTimeout(() => {
       try {
-        const doc = new jsPDF({
-          orientation: 'portrait',
-          unit: 'mm',
-          format: 'a4'
-        });
+        const doc = buildPdfDocument();
+        const pdfBlob = doc.output('blob');
+        const downloadUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `EduTwin_Informe_Desercion_${new Date().toISOString().slice(0, 10)}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(downloadUrl);
 
-        // Document Title & Cover Header
-        doc.setFillColor(15, 23, 42); // slate-900
-        doc.rect(0, 0, 210, 38, 'F');
-
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text('EDUTWIN.AI - INFORME EJECUTIVO DE RIESGO ESCOLAR', 14, 18);
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(186, 230, 253);
-        doc.text(
-          `Gemelo Digital & Modelo Predictivo ML | Generado: ${new Date().toLocaleDateString()} | Confidencial`,
-          14,
-          26
-        );
-
-        // Section 1: Executive Summary Metrics
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('1. RESUMEN EJECUTIVO Y DIAGNÓSTICO REGIONAL', 14, 48);
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(
-          `Se monitorean ${schools.length} planteles educativos en zonas vulnerables, cubriendo a ${filteredStudents.length} estudiantes evaluados con algoritmos de Machine Learning (XGBoost) y explicabilidad SHAP.`,
-          14,
-          56,
-          { maxWidth: 182 }
-        );
-
-        // Key stats table box
-        doc.setFillColor(241, 245, 249);
-        doc.rect(14, 64, 182, 28, 'F');
-        doc.rect(14, 64, 182, 28, 'S');
-
-        doc.setFont('helvetica', 'bold');
-        doc.text('Métricas Clave de la Región:', 18, 71);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`• Tasa de Estudiantes en Riesgo Alto: 38.4%`, 18, 78);
-        doc.text(`• Asistencia Promedio Ponderada: 73.2%`, 18, 85);
-        doc.text(`• Alertas Tempranas Pendientes: ${filteredStudents.reduce((a, c) => a + c.alerts.length, 0)}`, 110, 78);
-        doc.text(`• Índice de Equidad Algorítmica (DIR): 0.94 (Aprobado)`, 110, 85);
-
-        // Section 2: School Breakdown
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        doc.text('2. DISTRIBUCIÓN DE RIESGO POR PLANTEL EDUCATIVO', 14, 104);
-
-        let yPos = 112;
-        schools.forEach((sch, idx) => {
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(`${idx + 1}. ${sch.name} (${sch.code})`, 14, yPos);
-          doc.setFont('helvetica', 'normal');
-          doc.text(`Riesgo: ${sch.dropoutRiskScore}% | Matrícula: ${sch.totalStudents} | Asist: ${sch.attendanceAvg}% | Zona: ${sch.zoneCategory}`, 14, yPos + 5);
-          yPos += 13;
-        });
-
-        // Section 3: SHAP Feature Importance
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        doc.text('3. PRINCIPALES FACTORES DE VULNERABILIDAD IDENTIFICADOS (SHAP)', 14, yPos + 6);
-
-        const shapList = [
-          '1. Asistencia escolar menor al 60% (+28% contribución al riesgo de abandono)',
-          '2. Trabajo infantil o cuidado prolongado de hermanos >14h/sem (+22% contribución)',
-          '3. Distancia a la escuela >3.5 km en caminos no asfaltados (+18% contribución)',
-          '4. Inseguridad alimentaria en el hogar / Falta de comedor escolar (+15% contribución)'
-        ];
-
-        let shapY = yPos + 14;
-        shapList.forEach((item) => {
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.text(item, 14, shapY);
-          shapY += 6;
-        });
-
-        // Section 4: What-if Simulation Results
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(12);
-        doc.text('4. IMPACTO PROYECTADO DE INTERVENCIONES PREVENTIVAS', 14, shapY + 8);
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text(
-          `Con el escenario de simulación actual, se proyecta una reducción del riesgo de -${impact.overallRiskReduction}%, logrando rescatar a +${impact.studentsRescuedCount} estudiantes con un ROI social estimado de ${impact.roiSocialMultiplier}x.`,
-          14,
-          shapY + 16,
-          { maxWidth: 182 }
-        );
-
-        // Footer Ethics stamp
-        doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text(
-          'Documento auditado éticamente. Datos de menores protegidos bajo protocolo de anonimización SHA-256.',
-          14,
-          285
-        );
-
-        doc.save(`EduTwin_Informe_Desercion_${new Date().toISOString().slice(0, 10)}.pdf`);
+        const nextPreviewUrl = URL.createObjectURL(pdfBlob);
+        if (pdfPreviewUrl) {
+          URL.revokeObjectURL(pdfPreviewUrl);
+        }
+        setPdfPreviewUrl(nextPreviewUrl);
       } catch (err) {
         console.error('PDF export failed:', err);
       } finally {
         setIsGenerating(false);
       }
-    }, 600);
+    }, 300);
   };
+
+  useEffect(() => {
+    if (selectedFormat === 'pdf') {
+      refreshPdfPreview();
+    }
+  }, [selectedFormat, selectedSchoolId, selectedRiskTier, schools, students, simulationParams]);
 
   // Generate and Download Excel (.xlsx) using xlsx library
   const handleDownloadExcel = () => {
@@ -429,6 +483,31 @@ hashes SHA-256 conforme a las directivas de protección a menores.
         <div className="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{t.reports.scheduleSuccess}</span>
+        </div>
+      )}
+
+      {selectedFormat === 'pdf' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+              Vista previa del PDF
+            </h3>
+            <span className="text-[10px] uppercase tracking-wider text-slate-500">
+              {pdfPreviewUrl ? 'LISTO' : 'SIN PREVIEW'}
+            </span>
+          </div>
+
+          {pdfPreviewUrl ? (
+            <iframe
+              title="PDF Preview"
+              src={pdfPreviewUrl}
+              className="w-full h-[720px] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white"
+            />
+          ) : (
+            <div className="flex items-center justify-center h-[220px] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-500 dark:text-slate-400">
+              Genera el PDF para ver la vista previa aquí.
+            </div>
+          )}
         </div>
       )}
 
