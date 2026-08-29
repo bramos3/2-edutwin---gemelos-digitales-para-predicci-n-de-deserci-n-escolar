@@ -1,0 +1,6 @@
+{
+  "name": "EduTwin - Gemelos Digitales para Predicción de Deserción Escolar",
+  "description": "Sistema integral de gemelos digitales 3D y modelos predictivos ML con explicabilidad SHAP para la prevención y simulación de deserción escolar en zonas de alta vulnerabilidad socioeconómica.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
