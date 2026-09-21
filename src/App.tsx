@@ -20,6 +20,9 @@ import { ReportsCenter } from './components/reports/ReportsCenter';
 import { EthicsAndFairnessDashboard } from './components/ethics/EthicsAndFairnessDashboard';
 import { TechnicalArchitectureView } from './components/techDocs/TechnicalArchitectureView';
 import { AiChatbotModal } from './components/chat/AiChatbotModal';
+import { AiEngineDashboard } from './components/aiEngine/AiEngineDashboard';
+import { RenderErrorBoundary } from './components/shared/RenderErrorBoundary';
+import { ImportedDataset } from './services/dataIngestion';
 import {
   Layers,
   Sparkles,
@@ -46,7 +49,7 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<'twin3d' | 'analytics' | 'reports' | 'ethics' | 'techDocs'>('twin3d');
+  const [currentTab, setCurrentTab] = useState<'twin3d' | 'aiEngine' | 'analytics' | 'reports' | 'ethics' | 'techDocs'>('twin3d');
   const [level, setLevel] = useState<TwinLevel>('macro');
   const [role, setRole] = useState<UserRole>('director');
   const [language, setLanguage] = useState<Language>('es');
@@ -122,6 +125,14 @@ export default function App() {
     );
   };
 
+  const handleDatasetImported = (dataset: ImportedDataset) => {
+    setStudents(dataset.students);
+    setSchools(dataset.schools);
+    setSelectedSchool(dataset.schools[0] || null);
+    setSelectedClassroom(dataset.schools[0]?.classrooms[0] || null);
+    setSelectedStudent(dataset.students[0] || null);
+  };
+
   const t = translations[language];
 
   // Live aggregated counts
@@ -166,9 +177,9 @@ export default function App() {
         </div>
 
         {/* Navigation items */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 py-5 px-3 space-y-1.5 overflow-y-auto">
           {/* Section: Core Navigation */}
-          <div className="text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 pb-2">
+            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold px-2 pb-2">
             {language === 'es' ? 'Niveles Digital Twin' : 'Digital Twin Levels'}
           </div>
 
@@ -184,8 +195,11 @@ export default function App() {
                 : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
             }`}
           >
+            <Layers className={`w-4 h-4 ${
+              currentTab === 'twin3d' && level === 'macro' ? 'text-indigo-300' : 'text-slate-600'
+            }`} />
             <div
-              className={`w-2.5 h-2.5 rounded-full ${
+              className={`hidden w-2.5 h-2.5 rounded-full ${
                 currentTab === 'twin3d' && level === 'macro' ? 'bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.8)]' : 'border border-slate-600'
               }`}
             />
@@ -195,6 +209,7 @@ export default function App() {
           <button
             onClick={() => {
               setCurrentTab('twin3d');
+              setSelectedSchool((current) => current || schools[0] || null);
               setLevel('meso');
               setIsSidebarOpen(false);
             }}
@@ -204,8 +219,11 @@ export default function App() {
                 : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
             }`}
           >
+            <Compass className={`w-4 h-4 ${
+              currentTab === 'twin3d' && level === 'meso' ? 'text-cyan-300' : 'text-slate-600'
+            }`} />
             <div
-              className={`w-2.5 h-2.5 rounded-full ${
+              className={`hidden w-2.5 h-2.5 rounded-full ${
                 currentTab === 'twin3d' && level === 'meso' ? 'bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.8)]' : 'border border-slate-600'
               }`}
             />
@@ -215,6 +233,9 @@ export default function App() {
           <button
             onClick={() => {
               setCurrentTab('twin3d');
+              setSelectedSchool((current) => current || schools[0] || null);
+              setSelectedClassroom((current) => current || schools[0]?.classrooms[0] || null);
+              setSelectedStudent((current) => current || students[0] || null);
               setLevel('micro');
               setIsSidebarOpen(false);
             }}
@@ -224,8 +245,11 @@ export default function App() {
                 : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
             }`}
           >
+            <Sparkles className={`w-4 h-4 ${
+              currentTab === 'twin3d' && level === 'micro' ? 'text-violet-300' : 'text-slate-600'
+            }`} />
             <div
-              className={`w-2.5 h-2.5 rounded-full ${
+              className={`hidden w-2.5 h-2.5 rounded-full ${
                 currentTab === 'twin3d' && level === 'micro' ? 'bg-indigo-400 shadow-[0_0_6px_rgba(99,102,241,0.8)]' : 'border border-slate-600'
               }`}
             />
@@ -243,6 +267,21 @@ export default function App() {
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
               {Object.values(simulationParams).some((v) => Number(v) > 0) ? 'ACTIVE' : 'READY'}
             </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setCurrentTab('aiEngine');
+              setIsSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+              currentTab === 'aiEngine'
+                ? 'bg-cyan-600/15 text-cyan-300 border-l-2 border-cyan-500 font-medium'
+                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="truncate">{language === 'es' ? 'Motor IA CRISP-DM' : 'CRISP-DM AI Engine'}</span>
           </button>
 
           {/* Section: Administration & Audit */}
@@ -342,7 +381,7 @@ export default function App() {
       {/* 2. Main High-Density Workspace Container */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0A0B0E]">
         {/* Top Operational Command Header */}
-        <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 bg-[#0F1115] shrink-0 z-10">
+        <header className="min-h-[4.5rem] border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 bg-[#111827]/85 backdrop-blur-md shrink-0 z-10">
           <div className="flex items-center gap-3 sm:gap-6">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -356,8 +395,9 @@ export default function App() {
                 <span className="text-indigo-400 font-mono uppercase text-[11px] px-1.5 py-0.5 bg-indigo-950/60 border border-indigo-800/60 rounded">
                   {level.toUpperCase()}
                 </span>
-                <span className="truncate">
-                  {selectedSchool?.name || 'Sector Periurbano Sur-Este'}
+                <span className="hidden lg:flex flex-col leading-tight text-left">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">{selectedSchool?.code || 'EDU-NET'}</span>
+                  <span className="truncate max-w-[18rem]">{selectedSchool?.name || 'Sector Periurbano Sur-Este'}</span>
                 </span>
                 <span className="text-slate-500 font-normal hidden sm:inline text-xs">/ Distrito 402</span>
               </h2>
@@ -379,6 +419,10 @@ export default function App() {
                 <span className="text-slate-500">{language === 'es' ? 'Deserción Est.:' : 'Est. Dropout:'}</span>
                 <span className="text-amber-400 font-mono font-bold">{avgDropoutRate}%</span>
               </div>
+            </div>
+            <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-700/70 text-[10px] font-mono">
+              <span className="flex items-center gap-1.5 text-emerald-300"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" /> IA ONLINE</span>
+              <span className="flex items-center gap-1.5 text-cyan-300"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> DATOS SINCRONIZADOS</span>
             </div>
           </div>
 
@@ -430,21 +474,23 @@ export default function App() {
                 <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:20px_20px] opacity-25 pointer-events-none" />
 
                 {/* 3D Three.js WebGL canvas */}
-                <DigitalTwinCanvas
-                  level={level}
-                  setLevel={setLevel}
-                  schools={schools}
-                  selectedSchool={selectedSchool}
-                  setSelectedSchool={setSelectedSchool}
-                  selectedClassroom={selectedClassroom}
-                  setSelectedClassroom={setSelectedClassroom}
-                  selectedStudent={selectedStudent}
-                  setSelectedStudent={setSelectedStudent}
-                  students={students}
-                  simulationParams={simulationParams}
-                  theme={theme}
-                  language={language}
-                />
+                <RenderErrorBoundary language={language} label="Digital Twin 3D">
+                  <DigitalTwinCanvas
+                    level={level}
+                    setLevel={setLevel}
+                    schools={schools}
+                    selectedSchool={selectedSchool}
+                    setSelectedSchool={setSelectedSchool}
+                    selectedClassroom={selectedClassroom}
+                    setSelectedClassroom={setSelectedClassroom}
+                    selectedStudent={selectedStudent}
+                    setSelectedStudent={setSelectedStudent}
+                    students={students}
+                    simulationParams={simulationParams}
+                    theme={theme}
+                    language={language}
+                  />
+                </RenderErrorBoundary>
 
                 {/* Canvas Top-Right Quick Controls */}
                 <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
@@ -515,7 +561,7 @@ export default function App() {
                           {language === 'es' ? 'Score Predictivo' : 'Predictive Score'}
                         </div>
                         <div className="text-xl font-mono text-rose-500 font-bold">
-                          {selectedStudent ? `${Math.round(selectedStudent.riskScore * 100)}%` : '84.2%'}
+                          {selectedStudent ? `${Math.round(selectedStudent.dropoutProbability * 100)}%` : '84.2%'}
                         </div>
                       </div>
                       <span className="px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/40 text-[10px] font-mono rounded">
@@ -594,22 +640,34 @@ export default function App() {
               </div>
 
               {/* High-Density Matrix Panel: Schools / Classrooms / Student Roster */}
-              <SchoolClassroomPanel
-                level={level}
-                setLevel={setLevel}
-                schools={schools}
-                selectedSchool={selectedSchool}
-                setSelectedSchool={setSelectedSchool}
-                selectedClassroom={selectedClassroom}
-                setSelectedClassroom={setSelectedClassroom}
-                selectedStudent={selectedStudent}
-                setSelectedStudent={setSelectedStudent}
-                students={students}
-                simulationParams={simulationParams}
-                language={language}
-                onOpenStudentModal={(std) => setStudentModal(std)}
-              />
+              <RenderErrorBoundary language={language} label="School and classroom panel">
+                <SchoolClassroomPanel
+                  level={level}
+                  setLevel={setLevel}
+                  schools={schools}
+                  selectedSchool={selectedSchool}
+                  setSelectedSchool={setSelectedSchool}
+                  selectedClassroom={selectedClassroom}
+                  setSelectedClassroom={setSelectedClassroom}
+                  selectedStudent={selectedStudent}
+                  setSelectedStudent={setSelectedStudent}
+                  students={students}
+                  simulationParams={simulationParams}
+                  language={language}
+                  onOpenStudentModal={(std) => setStudentModal(std)}
+                />
+              </RenderErrorBoundary>
             </div>
+          )}
+
+          {/* TAB 2: CRISP-DM AI ENGINE */}
+          {currentTab === 'aiEngine' && (
+            <AiEngineDashboard
+              schools={schools}
+              students={students}
+              language={language}
+              onDatasetImported={handleDatasetImported}
+            />
           )}
 
           {/* TAB 2: REPORTS & LEGAL DELIVERABLES */}
@@ -658,6 +716,12 @@ export default function App() {
               className="hover:text-indigo-400 transition-colors"
             >
               {language === 'es' ? 'Generar Reporte PDF' : 'Generate PDF Report'}
+            </button>
+            <button
+              onClick={() => setCurrentTab('aiEngine')}
+              className="hover:text-cyan-300 transition-colors hidden md:inline"
+            >
+              {language === 'es' ? 'Validar Motor IA' : 'Validate AI Engine'}
             </button>
             <button
               onClick={() => setCurrentTab('reports')}
@@ -723,4 +787,3 @@ export default function App() {
     </div>
   );
 }
-

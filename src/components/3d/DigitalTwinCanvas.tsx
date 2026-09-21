@@ -190,14 +190,14 @@ export const DigitalTwinCanvas: React.FC<DigitalTwinCanvasProps> = ({
       updateCameraPosition();
     } else if (level === 'meso') {
       const school = selectedSchool || schools[0];
-      buildMesoView(group, school);
+      if (school) buildMesoView(group, school);
       targetCenterRef.current.set(0, 1.5, 0);
       cameraSphericalRef.current.radius = 16;
       cameraSphericalRef.current.phi = Math.PI / 3.4;
       updateCameraPosition();
     } else if (level === 'micro') {
       const student = selectedStudent || students[0];
-      buildMicroView(group, student);
+      if (student) buildMicroView(group, student);
       targetCenterRef.current.set(0, 1.2, 0);
       cameraSphericalRef.current.radius = 6.5;
       cameraSphericalRef.current.phi = Math.PI / 2.3;
@@ -821,7 +821,7 @@ export const DigitalTwinCanvas: React.FC<DigitalTwinCanvasProps> = ({
         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
         <span className="font-medium text-slate-700 dark:text-slate-300">
           {level === 'macro' && `${schools.length} ${language === 'es' ? 'Planteles en Red' : 'Schools in Network'}`}
-          {level === 'meso' && (selectedSchool?.name || schools[0].name)}
+          {level === 'meso' && (selectedSchool?.name || schools[0]?.name || (language === 'es' ? 'Sin unidad seleccionada' : 'No school selected'))}
           {level === 'micro' && `${selectedStudent?.anonymousId || '#STD-7489X'} (Anon ID)`}
         </span>
       </div>

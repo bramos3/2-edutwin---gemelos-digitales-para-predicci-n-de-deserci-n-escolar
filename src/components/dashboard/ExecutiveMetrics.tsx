@@ -30,9 +30,9 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
   );
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 my-2">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 my-2">
       {/* Metric 1: Total Students Monitored */}
-      <div className="bg-[#0F1115] border border-slate-800 rounded p-3 shadow-sm hover:border-slate-700 transition">
+      <div className="metric-rise bg-[#111827]/75 backdrop-blur-sm border border-slate-700/60 rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_30px_rgba(2,6,23,0.18)] hover:border-indigo-500/50 transition-all duration-300">
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 font-mono">
             {t.metrics.totalMonitored}
@@ -42,7 +42,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
           </div>
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-xl font-mono font-bold text-slate-100">
+          <span className="text-2xl font-mono font-bold text-slate-100 tracking-tight">
             {totalStudents.toLocaleString()}
           </span>
           <span className="text-[10px] font-mono text-indigo-400">
@@ -55,7 +55,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
       </div>
 
       {/* Metric 2: Critical Risk Rate */}
-      <div className="bg-[#0F1115] border border-slate-800 rounded p-3 shadow-sm hover:border-slate-700 transition">
+      <div className="metric-rise bg-[#111827]/75 backdrop-blur-sm border border-slate-700/60 rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_30px_rgba(2,6,23,0.18)] hover:border-rose-500/50 transition-all duration-300" style={{ animationDelay: '60ms' }}>
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 font-mono">
             {t.metrics.highRiskRate}
@@ -65,7 +65,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
           </div>
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-xl font-mono font-bold text-rose-500">
+          <span className="text-2xl font-mono font-bold text-rose-400 tracking-tight">
             {initialHighRiskRate}%
           </span>
           {simulationResult.overallRiskReduction > 0 && (
@@ -81,7 +81,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
       </div>
 
       {/* Metric 3: Rescuable Students (Simulated) */}
-      <div className="bg-[#0F1115] border border-slate-800 rounded p-3 shadow-sm hover:border-slate-700 transition">
+      <div className="metric-rise bg-[#111827]/75 backdrop-blur-sm border border-slate-700/60 rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_30px_rgba(2,6,23,0.18)] hover:border-emerald-500/50 transition-all duration-300" style={{ animationDelay: '120ms' }}>
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 font-mono">
             {t.metrics.simulatedRescue}
@@ -91,7 +91,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
           </div>
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-xl font-mono font-bold text-emerald-400">
+          <span className="text-2xl font-mono font-bold text-emerald-300 tracking-tight">
             +{simulationResult.studentsRescuedCount}
           </span>
           <span className="text-[10px] font-mono text-emerald-500">
@@ -104,7 +104,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
       </div>
 
       {/* Metric 4: Active Early Alerts */}
-      <div className="bg-[#0F1115] border border-slate-800 rounded p-3 shadow-sm hover:border-slate-700 transition">
+      <div className="metric-rise bg-[#111827]/75 backdrop-blur-sm border border-slate-700/60 rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_30px_rgba(2,6,23,0.18)] hover:border-amber-500/50 transition-all duration-300" style={{ animationDelay: '180ms' }}>
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 font-mono">
             {t.metrics.activeAlerts}
@@ -114,7 +114,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
           </div>
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-xl font-mono font-bold text-amber-400">
+          <span className="text-2xl font-mono font-bold text-amber-300 tracking-tight">
             {activeAlertsCount}
           </span>
           <span className="text-[10px] font-mono text-amber-500">
@@ -127,7 +127,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
       </div>
 
       {/* Metric 5: Algorithmic Fairness Index */}
-      <div className="col-span-2 sm:col-span-1 bg-[#0F1115] border border-slate-800 rounded p-3 shadow-sm hover:border-slate-700 transition">
+      <div className="col-span-2 sm:col-span-1 metric-rise bg-[#111827]/75 backdrop-blur-sm border border-slate-700/60 rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_30px_rgba(2,6,23,0.18)] hover:border-indigo-500/50 transition-all duration-300" style={{ animationDelay: '240ms' }}>
         <div className="flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500 font-mono">
             {t.metrics.fairnessIndex}
@@ -137,7 +137,7 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
           </div>
         </div>
         <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-xl font-mono font-bold text-indigo-400">
+          <span className="text-2xl font-mono font-bold text-indigo-300 tracking-tight">
             94.2%
           </span>
           <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-0.5">
@@ -152,4 +152,3 @@ export const ExecutiveMetrics: React.FC<ExecutiveMetricsProps> = ({
     </div>
   );
 };
-

@@ -123,6 +123,74 @@ export interface SimulationResult {
   };
 }
 
+export type CrispDmStageId =
+  | 'business'
+  | 'data'
+  | 'preparation'
+  | 'modeling'
+  | 'evaluation'
+  | 'deployment';
+
+export type AiModelFamily = 'classic' | 'hybrid';
+
+export interface AiModelResult {
+  id: string;
+  name: string;
+  family: AiModelFamily;
+  purpose: string;
+  rocAuc: number;
+  f1Score: number;
+  precisionAtK: number;
+  recall: number;
+  brierScore: number;
+  crossValidationMean: number;
+  crossValidationStd: number;
+  pValue: number;
+  confidenceInterval: [number, number];
+  hyperparameters: Record<string, string | number | boolean>;
+  strengths: string[];
+  interpretation: string;
+}
+
+export interface FeatureImportance {
+  featureKey: string;
+  label: { es: string; en: string };
+  importance: number;
+  direction: 'risk' | 'protective';
+  interpretation: { es: string; en: string };
+}
+
+export interface CrispDmStage {
+  id: CrispDmStageId;
+  title: { es: string; en: string };
+  status: 'complete' | 'running' | 'ready';
+  outputs: string[];
+  interpretation: { es: string; en: string };
+}
+
+export interface AiEngineSummary {
+  datasetRows: number;
+  featureCount: number;
+  positiveClassRate: number;
+  missingnessRate: number;
+  selectedModelId: string;
+  selectedModelName: string;
+  calibrationError: number;
+  alertThreshold: number;
+  leadTimeMonths: [number, number];
+  driftIndex: number;
+  validationMode: 'heuristic-prototype' | 'trained';
+  studentPredictions: Record<string, number>;
+  dataQuality: {
+    completeness: number;
+    duplicateIds: number;
+    invalidRanges: number;
+  };
+  modelResults: AiModelResult[];
+  featureImportance: FeatureImportance[];
+  crispDmStages: CrispDmStage[];
+}
+
 export interface FairnessMetric {
   category: string;
   metricName: string;

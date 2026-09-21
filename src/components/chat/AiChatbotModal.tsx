@@ -83,8 +83,11 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({
     // Context package to send to backend
     const context = {
       level,
-      selectedSchool,
-      selectedStudent,
+      selectedSchool: selectedSchool ? { id: selectedSchool.id, name: selectedSchool.name } : null,
+      selectedStudent: selectedStudent ? {
+        anonymousId: selectedStudent.anonymousId,
+        dropoutProbability: selectedStudent.dropoutProbability
+      } : null,
       simulationParams
     };
 

@@ -47,7 +47,21 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
   onOpenStudentModal
 }) => {
   const t = translations[language];
-  const activeSchool = selectedSchool || schools[0];
+  const activeSchool = selectedSchool && schools.some((school) => school.id === selectedSchool.id) ? selectedSchool : schools[0];
+
+  if (!activeSchool) {
+    return (
+      <div className="bg-[#0F1115] border border-amber-900/60 rounded p-5 shadow-sm">
+        <div className="flex items-center gap-3 text-amber-300">
+          <AlertTriangle className="w-5 h-5" />
+          <div>
+            <h3 className="text-sm font-bold">{language === 'es' ? 'Sin datos para este nivel' : 'No data for this level'}</h3>
+            <p className="text-xs text-slate-400 mt-1">{language === 'es' ? 'Selecciona una unidad escolar desde la vista Macro.' : 'Select a school unit from the Macro view.'}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#0F1115] border border-slate-800 rounded p-3.5 sm:p-4 shadow-sm space-y-3.5">
@@ -170,7 +184,7 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-            {activeSchool.classrooms.map((cls) => {
+              {(activeSchool?.classrooms ?? []).map((cls) => {
               const isSelected = selectedClassroom?.id === cls.id;
               let clColor = '#10b981';
               if (cls.riskScore >= 75) clColor = '#ef4444';
@@ -228,7 +242,11 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
       {level === 'micro' && (
         <div className="space-y-2.5">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {students.map((student) => {
+            {students.length === 0 ? (
+              <div className="col-span-full border border-amber-900/60 bg-amber-950/20 rounded p-5 text-sm text-amber-200">
+                {language === 'es' ? 'No hay estudiantes disponibles para mostrar en este nivel.' : 'No students are available for this level.'}
+              </div>
+            ) : students.map((student) => {
               const { simulatedProbability, simulatedTier, riskReduction } = calculateStudentRiskWithInterventions(
                 student,
                 simulationParams
@@ -305,4 +323,3 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
     </div>
   );
 };
-

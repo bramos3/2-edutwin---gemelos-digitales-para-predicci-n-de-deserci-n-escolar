@@ -2,11 +2,16 @@
 
 @layer base {
   :root {
-    --bg-cockpit: #0A0B0E;
-    --bg-panel: #0F1115;
-    --bg-canvas: #050608;
+    --bg-cockpit: #080B16;
+    --bg-panel: #111827;
+    --bg-canvas: #0b1020;
     --border-cockpit: #1e293b;
     --accent-indigo: #6366f1;
+    --accent-ai: #8b5cf6;
+  }
+
+  body {
+    background: var(--bg-cockpit);
   }
 }
 
@@ -62,4 +67,13 @@
 
 .chatbot-slide-up {
   animation: chatbot-slide-up 280ms ease-out both;
+}
+
+@keyframes metric-rise {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.metric-rise {
+  animation: metric-rise 420ms ease-out both;
 }

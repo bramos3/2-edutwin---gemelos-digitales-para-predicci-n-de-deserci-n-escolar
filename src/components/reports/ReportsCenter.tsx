@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { School, Student, SimulationParameters, Language, ReportConfig } from '../../types';
 import { translations } from '../../i18n/translations';
-import { evaluateScenarioImpact } from '../../services/mlEngine';
+import { buildAiEngineSummary, evaluateScenarioImpact } from '../../services/mlEngine';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import {
@@ -57,6 +57,7 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
   });
 
   const impact = evaluateScenarioImpact(students, schools, simulationParams);
+  const aiSummary = buildAiEngineSummary(students, schools);
 
   const buildPdfDocument = () => {
     const doc = new jsPDF({
@@ -92,7 +93,7 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(
-      `Se monitorean ${schools.length} planteles educativos en zonas vulnerables, cubriendo a ${filteredStudents.length} estudiantes evaluados con algoritmos de Machine Learning (XGBoost) y explicabilidad SHAP.`,
+      `Se monitorean ${schools.length} planteles educativos en zonas vulnerables, cubriendo a ${filteredStudents.length} estudiantes evaluados con el motor IA CRISP-DM. Modelo seleccionado: ${aiSummary.selectedModelName}, con AUC ${aiSummary.modelResults[0].rocAuc}.`,
       14,
       56,
       { maxWidth: 182 }
@@ -109,7 +110,7 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
     doc.text(`• Tasa de Estudiantes en Riesgo Alto: 38.4%`, 18, 78);
     doc.text(`• Asistencia Promedio Ponderada: 73.2%`, 18, 85);
     doc.text(`• Alertas Tempranas Pendientes: ${filteredStudents.reduce((a, c) => a + c.alerts.length, 0)}`, 110, 78);
-    doc.text(`• Índice de Equidad Algorítmica (DIR): 0.94 (Aprobado)`, 110, 85);
+    doc.text(`• Modelo IA: ${aiSummary.selectedModelName.slice(0, 34)}`, 110, 85);
 
     // Section 2: School Breakdown
     doc.setFont('helvetica', 'bold');
@@ -146,17 +147,31 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
       shapY += 6;
     });
 
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('4. VALIDACIÓN DEL MOTOR IA CRISP-DM', 14, shapY + 8);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    const bestModel = aiSummary.modelResults[0];
+    doc.text(
+      `Modelo ganador: ${bestModel.name}. Validación cruzada: ${bestModel.crossValidationMean} ± ${bestModel.crossValidationStd}; F1: ${bestModel.f1Score}; Precision@K: ${bestModel.precisionAtK}; p-value: ${bestModel.pValue}.`,
+      14,
+      shapY + 16,
+      { maxWidth: 182 }
+    );
+
     // Section 4: What-if Simulation Results
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text('4. IMPACTO PROYECTADO DE INTERVENCIONES PREVENTIVAS', 14, shapY + 8);
+    doc.text('5. IMPACTO PROYECTADO DE INTERVENCIONES PREVENTIVAS', 14, shapY + 30);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(
       `Con el escenario de simulación actual, se proyecta una reducción del riesgo de -${impact.overallRiskReduction}%, logrando rescatar a +${impact.studentsRescuedCount} estudiantes con un ROI social estimado de ${impact.roiSocialMultiplier}x.`,
       14,
-      shapY + 16,
+      shapY + 38,
       { maxWidth: 182 }
     );
 
@@ -283,6 +298,34 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
         const ws3 = XLSX.utils.json_to_sheet(simRows);
         XLSX.utils.book_append_sheet(wb, ws3, 'Simulacion_Impacto');
 
+        const modelRows = aiSummary.modelResults.map((model) => ({
+          Modelo: model.name,
+          Tipo: model.family,
+          Proposito: model.purpose,
+          AUC_ROC: model.rocAuc,
+          F1: model.f1Score,
+          Precision_K: model.precisionAtK,
+          Recall: model.recall,
+          Brier: model.brierScore,
+          Validacion_Cruzada_Media: model.crossValidationMean,
+          Validacion_Cruzada_Desv: model.crossValidationStd,
+          IC95: `[${model.confidenceInterval[0]}, ${model.confidenceInterval[1]}]`,
+          P_Value: model.pValue,
+          Interpretacion: model.interpretation,
+          Hiperparametros: JSON.stringify(model.hyperparameters)
+        }));
+        const ws4 = XLSX.utils.json_to_sheet(modelRows);
+        XLSX.utils.book_append_sheet(wb, ws4, 'Motor_IA_Modelos');
+
+        const xaiRows = aiSummary.featureImportance.map((feature) => ({
+          Variable: feature.label.es,
+          Importancia: feature.importance,
+          Direccion: feature.direction,
+          Interpretacion: feature.interpretation.es
+        }));
+        const ws5 = XLSX.utils.json_to_sheet(xaiRows);
+        XLSX.utils.book_append_sheet(wb, ws5, 'XAI_Interpretabilidad');
+
         XLSX.writeFile(wb, `EduTwin_Dataset_Desercion_${new Date().toISOString().slice(0, 10)}.xlsx`);
       } catch (err) {
         console.error('Excel export failed:', err);
@@ -314,12 +357,18 @@ de la zona, identificando una tasa de riesgo crítico del 38.4% en estudiantes d
 - Jornada laboral infantil y cuidado familiar (>14 horas semanales)
 - Lejanía física y falta de transporte escolar rural/periurbano
 
-3. RECOMENDACIONES DE INTERVENCIÓN
+3. MOTOR IA CRISP-DM
+Modelo seleccionado: ${aiSummary.selectedModelName}
+Validación cruzada AUC: ${aiSummary.modelResults[0].crossValidationMean} ± ${aiSummary.modelResults[0].crossValidationStd}
+Prueba estadística robusta p-value: ${aiSummary.modelResults[0].pValue}
+Umbral de alerta temprana: ${Math.round(aiSummary.alertThreshold * 100)}%
+
+4. RECOMENDACIONES DE INTERVENCIÓN
 - Priorizar la entrega de paquetes de alimentación escolar.
 - Asignar tutores psicopedagógicos a los estudiantes en riesgo crítico.
 - Implementar subsidios de transporte escolar en rutas de más de 3 km.
 
-4. DECLARACIÓN DE ÉTICA Y PROTECCIÓN DE DATOS
+5. DECLARACIÓN DE ÉTICA Y PROTECCIÓN DE DATOS
 Todos los registros contenidos en este informe han sido sometidos a seudonimización mediante
 hashes SHA-256 conforme a las directivas de protección a menores.
 ================================================================================
