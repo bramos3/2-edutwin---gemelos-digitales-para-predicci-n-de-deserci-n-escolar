@@ -64,11 +64,11 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
   }
 
   return (
-    <div className="bg-[#0F1115] border border-slate-800 rounded p-3.5 sm:p-4 shadow-sm space-y-3.5">
+    <div className="panel-modern rounded-lg p-3.5 sm:p-4 space-y-3.5">
       {/* Top Header Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-indigo-600/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+          <div className="w-6 h-6 rounded-md bg-teal-500/10 text-teal-300 flex items-center justify-center border border-teal-500/20">
             <Building2 className="w-3.5 h-3.5" />
           </div>
           <div>
@@ -90,7 +90,7 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
           {level !== 'macro' && (
             <button
               onClick={() => setLevel('macro')}
-              className="px-2 py-1 text-[10px] font-mono rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition"
+              className="px-2 py-1 text-[10px] font-mono rounded-md bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-teal-500/50 transition"
             >
               ← {language === 'es' ? 'NIVEL MACRO' : 'MACRO LEVEL'}
             </button>
@@ -98,7 +98,7 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
           {level === 'micro' && (
             <button
               onClick={() => setLevel('meso')}
-              className="px-2 py-1 text-[10px] font-mono rounded bg-slate-900 border border-slate-700 text-slate-300 hover:text-white transition"
+              className="px-2 py-1 text-[10px] font-mono rounded-md bg-slate-900 border border-slate-700 text-slate-300 hover:text-white hover:border-teal-500/50 transition"
             >
               ← {language === 'es' ? 'NIVEL MESO' : 'MESO LEVEL'}
             </button>
@@ -126,8 +126,8 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
                 }}
                 className={`p-3 rounded border transition-all cursor-pointer ${
                   isSelected
-                    ? 'border-indigo-500 bg-indigo-950/20 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
-                    : 'border-slate-800 bg-[#0A0B0E] hover:border-slate-700'
+                    ? 'border-teal-500/70 bg-teal-950/20 shadow-sm'
+                    : 'border-slate-800 bg-[#0c1017] hover:border-teal-500/40'
                 }`}
               >
                 <div className="flex items-start justify-between">
@@ -152,15 +152,15 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
                 </div>
 
                 <div className="grid grid-cols-3 gap-1.5 mt-2.5 text-[10px] font-mono">
-                  <div className="bg-slate-900/90 p-1 rounded border border-slate-800 text-center">
+                  <div className="bg-slate-900/90 p-1 rounded-md border border-slate-800 text-center">
                     <span className="block text-[9px] text-slate-500 uppercase">Matrícula</span>
                     <span className="font-bold text-slate-300">{school.totalStudents}</span>
                   </div>
-                  <div className="bg-slate-900/90 p-1 rounded border border-slate-800 text-center">
+                  <div className="bg-slate-900/90 p-1 rounded-md border border-slate-800 text-center">
                     <span className="block text-[9px] text-slate-500 uppercase">Asistencia</span>
                     <span className="font-bold text-slate-300">{school.attendanceAvg}%</span>
                   </div>
-                  <div className="bg-slate-900/90 p-1 rounded border border-slate-800 text-center">
+                  <div className="bg-slate-900/90 p-1 rounded-md border border-slate-800 text-center">
                     <span className="block text-[9px] text-slate-500 uppercase">Comedor</span>
                     <span className="font-bold text-slate-300">{school.mealPlanActive ? 'Sí' : 'No'}</span>
                   </div>
@@ -201,8 +201,8 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
                   }}
                   className={`p-3 rounded border transition-all cursor-pointer ${
                     isSelected
-                      ? 'border-indigo-500 bg-indigo-950/20 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
-                      : 'border-slate-800 bg-[#0A0B0E] hover:border-slate-700'
+                      ? 'border-teal-500/70 bg-teal-950/20 shadow-sm'
+                      : 'border-slate-800 bg-[#0c1017] hover:border-teal-500/40'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -259,8 +259,8 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
                   onClick={() => setSelectedStudent(student)}
                   className={`p-2.5 rounded border transition-all cursor-pointer flex items-center justify-between ${
                     isSelected
-                      ? 'border-indigo-500 bg-indigo-950/30 ring-1 ring-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.2)]'
-                      : 'border-slate-800 bg-[#0A0B0E] hover:border-slate-700'
+                      ? 'border-teal-500/70 bg-teal-950/25 ring-1 ring-teal-500/40 shadow-sm'
+                      : 'border-slate-800 bg-[#0c1017] hover:border-teal-500/40'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -308,7 +308,7 @@ export const SchoolClassroomPanel: React.FC<SchoolClassroomPanelProps> = ({
                         e.stopPropagation();
                         onOpenStudentModal(student);
                       }}
-                      className="p-1 rounded text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition"
+                      className="p-1 rounded-md text-slate-400 hover:text-teal-300 hover:bg-slate-800 transition"
                       title="Ver Ficha Completa & SHAP"
                     >
                       <ChevronRight className="w-3.5 h-3.5" />

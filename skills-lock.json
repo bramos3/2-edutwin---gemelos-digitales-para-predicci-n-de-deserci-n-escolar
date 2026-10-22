@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "skills": {
+    "disenador_grafico_profesional": {
+      "source": "nexoratechnologyceo/automyx-2.5",
+      "sourceType": "github",
+      "skillPath": "skills/disenador_grafico_profesional/SKILL.md",
+      "computedHash": "3a94b0be84a7d3b4189898c2e51e027768f2a53cbb614f871408c4dcfbf01506"
+    },
+    "guia-diseno-ui-moderno": {
+      "source": "modelscope.cn",
+      "sourceType": "well-known",
+      "computedHash": "e23b744a228e6ea204941c04cb26fc09ea06a5c3c39b077073ccefe6c3f66440"
+    }
+  }
+}

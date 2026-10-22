@@ -1,4 +1,4 @@
-import { Component, ReactNode } from 'react';
+import { Component, ReactNode, cloneElement, isValidElement } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 
 interface RenderErrorBoundaryProps {
@@ -9,10 +9,11 @@ interface RenderErrorBoundaryProps {
 
 interface RenderErrorBoundaryState {
   hasError: boolean;
+  retryKey: number;
 }
 
 export class RenderErrorBoundary extends Component<RenderErrorBoundaryProps, RenderErrorBoundaryState> {
-  state: RenderErrorBoundaryState = { hasError: false };
+  state: RenderErrorBoundaryState = { hasError: false, retryKey: 0 };
 
   static getDerivedStateFromError(): RenderErrorBoundaryState {
     return { hasError: true };
@@ -23,12 +24,15 @@ export class RenderErrorBoundary extends Component<RenderErrorBoundaryProps, Ren
   }
 
   handleRetry = () => {
-    (this as any).setState({ hasError: false });
+    this.setState((state) => ({ hasError: false, retryKey: state.retryKey + 1 }));
   };
 
   render() {
     const props = (this as any).props as RenderErrorBoundaryProps;
-    if (!this.state.hasError) return props.children;
+    if (!this.state.hasError) {
+      const child = props.children;
+      return isValidElement(child) ? cloneElement(child, { key: this.state.retryKey }) : child;
+    }
 
     const isSpanish = props.language === 'es';
     return (

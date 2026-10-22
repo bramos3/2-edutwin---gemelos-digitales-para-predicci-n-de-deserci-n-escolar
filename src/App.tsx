@@ -103,23 +103,13 @@ export default function App() {
   const handleToggleIntervention = (studentId: string, interventionName: string) => {
     setStudents((prev) =>
       prev.map((s) => {
-        if (s.id !== studentId) return s;
-        const exists = s.interventions.some((i) => i.name === interventionName);
+        if (s.idHash !== studentId) return s;
+        const exists = s.activeInterventions.includes(interventionName);
         return {
           ...s,
-          interventions: exists
-            ? s.interventions.filter((i) => i.name !== interventionName)
-            : [
-                ...s.interventions,
-                {
-                  id: Date.now().toString(),
-                  name: interventionName,
-                  type: 'academic',
-                  startDate: new Date().toISOString().slice(0, 10),
-                  status: 'active',
-                  assignedBy: 'Sistema EduTwin AI'
-                }
-              ]
+          activeInterventions: exists
+            ? s.activeInterventions.filter((name) => name !== interventionName)
+            : [...s.activeInterventions, interventionName]
         };
       })
     );
@@ -144,27 +134,27 @@ export default function App() {
   ).toFixed(1);
 
   return (
-    <div className="flex h-screen w-full bg-[#0A0B0E] text-slate-300 font-sans overflow-hidden select-none">
+    <div className="app-shell flex h-screen w-full text-slate-300 font-sans overflow-hidden select-none">
       {/* 1. High Density Command Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 border-r border-slate-800 bg-[#0F1115] flex flex-col transition-transform duration-300 lg:static lg:translate-x-0 ${
+        className={`surface-sidebar fixed inset-y-0 left-0 z-40 w-[17rem] border-r border-slate-800/80 flex flex-col transition-transform duration-300 lg:static lg:translate-x-0 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-5 border-b border-slate-800/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-indigo-600 rounded flex items-center justify-center shadow-[0_0_12px_rgba(99,102,241,0.35)]">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-10 h-10 rounded-lg accent-badge flex items-center justify-center">
+              <svg className="w-5 h-5 text-teal-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
             <div>
-              <span className="font-bold text-slate-100 tracking-tight leading-tight block text-sm">
-                DIGITAL TWIN
+              <span className="font-semibold text-slate-100 tracking-tight leading-tight block text-base">
+                EDUTWIN
               </span>
-              <span className="text-[10px] text-indigo-400 font-mono tracking-wider">
-                PRED_SCHOOL_V2
+              <span className="mono-label text-[9px] text-teal-300">
+                INTELIGENCIA EDUCATIVA
               </span>
             </div>
           </div>
@@ -177,9 +167,9 @@ export default function App() {
         </div>
 
         {/* Navigation items */}
-        <nav className="flex-1 py-5 px-3 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 py-6 px-4 space-y-1.5 overflow-y-auto">
           {/* Section: Core Navigation */}
-            <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-bold px-2 pb-2">
+            <div className="mono-label text-[10px] uppercase text-slate-500 font-bold px-2 pb-2">
             {language === 'es' ? 'Niveles Digital Twin' : 'Digital Twin Levels'}
           </div>
 
@@ -189,14 +179,14 @@ export default function App() {
               setLevel('macro');
               setIsSidebarOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
               currentTab === 'twin3d' && level === 'macro'
-                ? 'bg-indigo-600/15 text-indigo-400 border-l-2 border-indigo-600 font-medium'
-                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                ? 'nav-active font-medium'
+                : 'nav-passive'
             }`}
           >
             <Layers className={`w-4 h-4 ${
-              currentTab === 'twin3d' && level === 'macro' ? 'text-indigo-300' : 'text-slate-600'
+              currentTab === 'twin3d' && level === 'macro' ? 'text-teal-300' : 'text-slate-600'
             }`} />
             <div
               className={`hidden w-2.5 h-2.5 rounded-full ${
@@ -213,10 +203,10 @@ export default function App() {
               setLevel('meso');
               setIsSidebarOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
               currentTab === 'twin3d' && level === 'meso'
-                ? 'bg-indigo-600/15 text-indigo-400 border-l-2 border-indigo-600 font-medium'
-                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                ? 'nav-active font-medium'
+                : 'nav-passive'
             }`}
           >
             <Compass className={`w-4 h-4 ${
@@ -239,10 +229,10 @@ export default function App() {
               setLevel('micro');
               setIsSidebarOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
               currentTab === 'twin3d' && level === 'micro'
-                ? 'bg-indigo-600/15 text-indigo-400 border-l-2 border-indigo-600 font-medium'
-                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                ? 'nav-active font-medium'
+                : 'nav-passive'
             }`}
           >
             <Sparkles className={`w-4 h-4 ${
@@ -258,7 +248,7 @@ export default function App() {
 
           <button
             onClick={() => setIsSimulating(true)}
-            className="w-full flex items-center justify-between px-3 py-2 text-xs rounded hover:bg-slate-800/60 text-amber-400/90 hover:text-amber-300 transition-colors text-left group"
+            className="w-full flex items-center justify-between px-3 py-2.5 text-sm rounded-md hover:bg-slate-800/60 text-amber-300 hover:text-amber-200 transition-colors text-left group"
           >
             <div className="flex items-center gap-3">
               <Sliders className="w-3.5 h-3.5 text-amber-500" />
@@ -274,9 +264,9 @@ export default function App() {
               setCurrentTab('aiEngine');
               setIsSidebarOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
               currentTab === 'aiEngine'
-                ? 'bg-cyan-600/15 text-cyan-300 border-l-2 border-cyan-500 font-medium'
+                ? 'nav-active font-medium'
                 : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -285,7 +275,7 @@ export default function App() {
           </button>
 
           {/* Section: Administration & Audit */}
-          <div className="pt-5 text-[10px] uppercase tracking-widest text-slate-500 font-bold px-2 pb-2">
+          <div className="mono-label pt-6 text-[10px] uppercase text-slate-500 font-bold px-2 pb-2">
             {language === 'es' ? 'Administración y Auditoría' : 'Governance & Audit'}
           </div>
 
@@ -294,10 +284,10 @@ export default function App() {
               setCurrentTab('reports');
               setIsSidebarOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
               currentTab === 'reports'
-                ? 'bg-indigo-600/15 text-indigo-400 border-l-2 border-indigo-600 font-medium'
-                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                ? 'nav-active font-medium'
+                : 'nav-passive'
             }`}
           >
             <FileText className="w-3.5 h-3.5 text-slate-400" />
@@ -309,28 +299,43 @@ export default function App() {
               setCurrentTab('ethics');
               setIsSidebarOpen(false);
             }}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs rounded transition-colors text-left ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
               currentTab === 'ethics'
-                ? 'bg-indigo-600/15 text-indigo-400 border-l-2 border-indigo-600 font-medium'
-                : 'hover:bg-slate-800/60 text-slate-400 hover:text-slate-200'
+                ? 'nav-active font-medium'
+                : 'nav-passive'
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
             <span className="truncate">{language === 'es' ? 'Auditoría de Sesgo & Ética' : 'Bias Audit & Ethics'}</span>
           </button>
 
+          <button
+            onClick={() => {
+              setCurrentTab('techDocs');
+              setIsSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-md transition-colors text-left ${
+              currentTab === 'techDocs'
+                ? 'nav-active font-medium'
+                : 'nav-passive'
+            }`}
+          >
+            <Code2 className="w-3.5 h-3.5 text-slate-400" />
+            <span className="truncate">{language === 'es' ? 'Arquitectura LangChain' : 'LangChain Architecture'}</span>
+          </button>
+
         </nav>
 
         {/* Sidebar Telemetry & Quick Settings */}
-        <div className="p-3.5 border-t border-slate-800 bg-[#0A0B0E]/80 space-y-2.5">
+        <div className="p-4 border-t border-slate-800/80 bg-[#090c12]/80 space-y-3">
           {/* Version and Language */}
           <div className="flex justify-between items-center">
-            <span className="text-[11px] font-mono text-slate-500">v1.14.2-stable</span>
+            <span className="mono-label text-[10px] text-slate-500">v1.14.2</span>
             <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded p-0.5">
               <button
                 onClick={() => setLanguage('es')}
                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  language === 'es' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  language === 'es' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 ES
@@ -338,7 +343,7 @@ export default function App() {
               <button
                 onClick={() => setLanguage('en')}
                 className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  language === 'en' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                  language === 'en' ? 'bg-teal-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 EN
@@ -348,11 +353,11 @@ export default function App() {
 
           {/* Role selector */}
           <div className="flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">{t.roles.roleLabel}:</span>
+            <span className="text-slate-500">{language === 'es' ? 'Rol' : 'Role'}:</span>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole)}
-              className="bg-slate-900 text-slate-300 text-[10px] font-mono border border-slate-800 rounded px-1.5 py-0.5 focus:outline-none focus:border-indigo-500"
+              className="bg-slate-900 text-slate-300 text-[10px] font-mono border border-slate-800 rounded px-1.5 py-0.5 focus:outline-none focus:border-teal-500"
             >
               <option value="director">{t.roles.director}</option>
               <option value="admin">{t.roles.admin}</option>
@@ -379,9 +384,9 @@ export default function App() {
       </aside>
 
       {/* 2. Main High-Density Workspace Container */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0A0B0E]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Operational Command Header */}
-        <header className="min-h-[4.5rem] border-b border-slate-800/80 flex items-center justify-between px-4 sm:px-6 bg-[#111827]/85 backdrop-blur-md shrink-0 z-10">
+        <header className="surface-header min-h-[5rem] border-b border-slate-800/80 flex items-center justify-between px-5 sm:px-7 backdrop-blur-md shrink-0 z-10">
           <div className="flex items-center gap-3 sm:gap-6">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -392,12 +397,12 @@ export default function App() {
 
             <div className="flex items-center gap-2">
               <h2 className="text-slate-100 font-semibold text-xs sm:text-sm tracking-tight flex items-center gap-1.5 truncate">
-                <span className="text-indigo-400 font-mono uppercase text-[11px] px-1.5 py-0.5 bg-indigo-950/60 border border-indigo-800/60 rounded">
+                <span className="accent-badge mono-label uppercase text-[10px] px-2 py-1 rounded-md">
                   {level.toUpperCase()}
                 </span>
                 <span className="hidden lg:flex flex-col leading-tight text-left">
-                  <span className="text-[10px] text-slate-500 uppercase tracking-wider">{selectedSchool?.code || 'EDU-NET'}</span>
-                  <span className="truncate max-w-[18rem]">{selectedSchool?.name || 'Sector Periurbano Sur-Este'}</span>
+                  <span className="mono-label text-[9px] text-slate-500 uppercase">{selectedSchool?.code || 'EDU-NET'}</span>
+                  <span className="truncate max-w-[22rem] text-base">{selectedSchool?.name || 'Sector Periurbano Sur-Este'}</span>
                 </span>
                 <span className="text-slate-500 font-normal hidden sm:inline text-xs">/ Distrito 402</span>
               </h2>
@@ -409,7 +414,7 @@ export default function App() {
             <div className="hidden md:flex items-center gap-4">
               <div className="text-xs flex items-center gap-1.5">
                 <span className="text-slate-500">{language === 'es' ? 'Escuelas:' : 'Schools:'}</span>
-                <span className="text-indigo-400 font-mono font-bold">{totalSchools}</span>
+                <span className="text-teal-300 font-mono font-bold">{totalSchools}</span>
               </div>
               <div className="text-xs flex items-center gap-1.5">
                 <span className="text-slate-500">{language === 'es' ? 'Riesgo Crítico:' : 'Critical Risk:'}</span>
@@ -420,9 +425,9 @@ export default function App() {
                 <span className="text-amber-400 font-mono font-bold">{avgDropoutRate}%</span>
               </div>
             </div>
-            <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-700/70 text-[10px] font-mono">
-              <span className="flex items-center gap-1.5 text-emerald-300"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" /> IA ONLINE</span>
-              <span className="flex items-center gap-1.5 text-cyan-300"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> DATOS SINCRONIZADOS</span>
+            <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-700/70 mono-label text-[10px]">
+              <span className="enterprise-status rounded-md px-2 py-1 flex items-center gap-1.5 text-emerald-200"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> IA ONLINE</span>
+              <span className="enterprise-status rounded-md px-2 py-1 flex items-center gap-1.5 text-sky-200"><span className="w-1.5 h-1.5 rounded-full bg-sky-400" /> DATOS SINCRONIZADOS</span>
             </div>
           </div>
 
@@ -431,17 +436,17 @@ export default function App() {
             {/* Quick chatbot trigger */}
             <button
               onClick={() => setIsChatOpen(true)}
-              className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded text-xs font-mono border border-slate-700 flex items-center gap-1.5 transition shadow-sm"
+              className="enterprise-status hover:border-slate-500 text-slate-200 px-3 py-2 rounded-md text-xs font-medium flex items-center gap-2 transition"
               title="Abrir Asistente IA"
             >
-              <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
+              <div className="w-1.5 h-1.5 bg-teal-300 rounded-full animate-pulse" />
               <span className="hidden sm:inline">Chatbot</span>
             </button>
 
             {/* Simular Intervencion CTA */}
             <button
               onClick={() => setIsSimulating(true)}
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-sm text-xs font-bold transition shadow-[0_0_12px_rgba(99,102,241,0.3)]"
+              className="primary-action flex items-center gap-2 px-4 py-2 rounded-md text-xs font-bold transition"
             >
               <Sliders className="w-3.5 h-3.5" />
               <span className="uppercase tracking-wider text-[11px]">
@@ -452,7 +457,7 @@ export default function App() {
         </header>
 
         {/* Dynamic Main Viewport (Scrollable container) */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           {/* High Density Metric Cards Strip */}
           <ExecutiveMetrics
             schools={schools}
@@ -466,12 +471,12 @@ export default function App() {
             <div className="space-y-4">
               {/* 3D Digital Twin Command Box */}
               <div
-                className={`relative rounded-lg overflow-hidden border border-slate-800 bg-[#050608] shadow-2xl transition-all duration-300 ${
+                className={`panel-modern relative rounded-lg overflow-hidden bg-[#050608] transition-all duration-300 ${
                   isFullscreen3D ? 'fixed inset-0 z-50 rounded-none h-screen w-screen' : 'h-[500px] sm:h-[580px] w-full'
                 }`}
               >
                 {/* Background dot grid pattern */}
-                <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:20px_20px] opacity-25 pointer-events-none" />
+                <div className="absolute inset-0 bg-[radial-gradient(rgba(148,163,184,0.18)_1px,transparent_1px)] [background-size:28px_28px] opacity-20 pointer-events-none" />
 
                 {/* 3D Three.js WebGL canvas */}
                 <RenderErrorBoundary language={language} label="Digital Twin 3D">
@@ -493,18 +498,18 @@ export default function App() {
                 </RenderErrorBoundary>
 
                 {/* Canvas Top-Right Quick Controls */}
-                <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+                <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
                   <button
                     onClick={() => setIsFullscreen3D(!isFullscreen3D)}
                     title={isFullscreen3D ? 'Salir de pantalla completa' : 'Pantalla Completa'}
-                    className="p-2 bg-[#0F1115]/90 hover:bg-slate-800 text-slate-300 hover:text-white rounded border border-slate-700/80 backdrop-blur-md transition shadow-md"
+                    className="twin-floating-control p-2 text-slate-300 hover:text-white rounded-md transition"
                   >
                     {isFullscreen3D ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>
 
                 {/* HUD: Twin Controls Panel (Bottom Left) */}
-                <div className="absolute bottom-3 left-3 z-20 bg-[#0F1115]/90 border border-slate-800 rounded p-2.5 backdrop-blur-md shadow-2xl space-y-1.5 max-w-[210px]">
+                <div className="hidden absolute bottom-3 left-3 z-20 bg-[#0F1115]/90 border border-slate-800 rounded p-2.5 backdrop-blur-md shadow-2xl space-y-1.5 max-w-[210px]">
                   <div className="text-[10px] uppercase text-slate-500 font-bold tracking-wider">
                     {language === 'es' ? 'Controles Twin' : 'Twin Controls'}
                   </div>
@@ -553,8 +558,8 @@ export default function App() {
                 </div>
 
                 {/* HUD: Predictive Score Card with Live SHAP Determinants (Top/Mid Right) */}
-                <div className="absolute top-12 right-3 z-20 w-72 hidden md:flex flex-col gap-2.5 pointer-events-auto">
-                  <div className="bg-[#0F1115]/95 border border-slate-800 rounded shadow-2xl p-3.5 backdrop-blur-md">
+                <div className="hidden">
+                  <div className="panel-modern rounded-lg p-3.5 backdrop-blur-md">
                     <div className="flex justify-between items-start mb-2.5">
                       <div>
                         <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
@@ -603,7 +608,7 @@ export default function App() {
                   </div>
 
                   {/* Mini AI Companion Terminal Card */}
-                  <div className="bg-[#0F1115]/95 border border-slate-800 rounded shadow-2xl flex flex-col h-44 backdrop-blur-md overflow-hidden">
+                  <div className="panel-modern rounded-lg flex flex-col h-44 backdrop-blur-md overflow-hidden">
                     <div className="p-2.5 border-b border-slate-800 bg-indigo-600/5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse" />
@@ -690,14 +695,16 @@ export default function App() {
 
           {/* TAB 4: TECHNICAL ARCHITECTURE & API DOCS */}
           {currentTab === 'techDocs' && (
-            <TechnicalArchitectureView
-              language={language}
-            />
+            <RenderErrorBoundary language={language} label="Technical architecture">
+              <TechnicalArchitectureView
+                language={language}
+              />
+            </RenderErrorBoundary>
           )}
         </main>
 
         {/* 3. High Density Telemetry Footer */}
-        <footer className="h-10 border-t border-slate-800 bg-[#0F1115] px-4 sm:px-6 flex items-center justify-between shrink-0 text-xs">
+        <footer className="h-10 border-t border-slate-800/80 bg-[#0b0e14] px-4 sm:px-6 flex items-center justify-between shrink-0 text-xs">
           <div className="flex items-center gap-4 text-[10px] text-slate-500 font-mono">
             <span className="flex items-center gap-1">
               <div className="w-2 h-2 bg-rose-500 rounded-sm" /> {language === 'es' ? 'RIESGO CRÍTICO (>65%)' : 'CRITICAL (>65%)'}

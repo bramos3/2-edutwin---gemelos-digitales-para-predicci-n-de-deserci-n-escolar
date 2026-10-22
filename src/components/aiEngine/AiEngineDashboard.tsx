@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { School, Student, Language, AiModelResult, AiEngineSummary } from '../../types';
+import { School, Student, Language, AiModelResult, AiEngineSummary, FeatureImportance, CrispDmStage } from '../../types';
 import { buildAiEngineSummary } from '../../services/mlEngine';
 import { importDatasetFile, ImportedDataset } from '../../services/dataIngestion';
 import {
@@ -28,6 +28,7 @@ import {
   Sigma,
   Server,
   Target,
+  Terminal,
   Upload,
   Wand2
 } from 'lucide-react';
@@ -43,7 +44,7 @@ const fmtPct = (value: number) => `${Math.round(value * 100)}%`;
 const fmtScore = (value: number) => value.toFixed(3);
 
 export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, students, language, onDatasetImported }) => {
-  const [activeView, setActiveView] = useState<'crisp' | 'intake' | 'eda' | 'training' | 'validation' | 'tuning' | 'stats' | 'alert' | 'admin' | 'models' | 'xai' | 'deployment'>('crisp');
+  const [activeView, setActiveView] = useState<'crisp' | 'intake' | 'eda' | 'training' | 'validation' | 'tuning' | 'stats' | 'alert' | 'models' | 'xai' | 'orchestration' | 'deployment' | 'admin'>('crisp');
   const [sourceFile, setSourceFile] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
@@ -96,6 +97,10 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
     tuning: language === 'es' ? 'Hiperparámetros' : 'Hyperparameters',
     stats: language === 'es' ? 'Pruebas Estadísticas' : 'Statistical Tests',
     alert: language === 'es' ? 'Alerta Temprana' : 'Early Warning',
+    models: language === 'es' ? 'Modelos' : 'Models',
+    xai: language === 'es' ? 'Explicabilidad XAI' : 'XAI Explainability',
+    orchestration: language === 'es' ? 'LangChain + Langflow' : 'LangChain + Langflow',
+    deployment: language === 'es' ? 'Despliegue' : 'Deployment',
     admin: language === 'es' ? 'Administración' : 'Administration'
   };
 
@@ -176,6 +181,10 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
             {key === 'tuning' && <SlidersHorizontal className="w-3.5 h-3.5" />}
             {key === 'stats' && <Sigma className="w-3.5 h-3.5" />}
             {key === 'alert' && <AlertOctagon className="w-3.5 h-3.5" />}
+            {key === 'models' && <GitBranch className="w-3.5 h-3.5" />}
+            {key === 'xai' && <LineChart className="w-3.5 h-3.5" />}
+            {key === 'orchestration' && <Network className="w-3.5 h-3.5" />}
+            {key === 'deployment' && <Server className="w-3.5 h-3.5" />}
             {key === 'admin' && <Settings2 className="w-3.5 h-3.5" />}
             {label}
           </button>
@@ -183,39 +192,48 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
       </nav>
 
       {activeView === 'crisp' && (
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {summary.crispDmStages.map((stage, index) => (
-            <div key={stage.id} className="border border-slate-800 bg-[#0F1115] rounded-lg p-4 min-h-[210px]">
-              <div className="flex items-start justify-between gap-3">
-                <div className="w-9 h-9 rounded bg-slate-800 text-cyan-300 flex items-center justify-center font-mono text-xs">
-                  {index + 1}
+        <section className="space-y-4">
+          <SectionIntro
+            icon={<Gauge className="w-5 h-5" />}
+            eyebrow="CRISP-DM CONTROL TOWER"
+            title={language === 'es' ? 'Ciclo Profesional del Motor IA' : 'Professional AI Engine Cycle'}
+            description={language === 'es' ? 'Supervisa el ciclo completo: problema, datos, preparación, modelado, evaluación y despliegue operativo.' : 'Monitor the complete cycle: problem, data, preparation, modeling, evaluation and operational deployment.'}
+          />
+          <CrispDmFlowMap stages={summary.crispDmStages} language={language} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {summary.crispDmStages.map((stage, index) => (
+              <div key={stage.id} className="border border-slate-800 bg-[#0F1115] rounded-lg p-4 min-h-[210px]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="w-9 h-9 rounded bg-slate-800 text-cyan-300 flex items-center justify-center font-mono text-xs">
+                    {index + 1}
+                  </div>
+                  <span
+                    className={`px-2 py-1 rounded text-[10px] font-mono uppercase border ${
+                      stage.status === 'complete'
+                        ? 'border-emerald-800 text-emerald-300 bg-emerald-950/30'
+                        : stage.status === 'running'
+                        ? 'border-amber-800 text-amber-300 bg-amber-950/30'
+                        : 'border-slate-700 text-slate-400 bg-slate-900'
+                    }`}
+                  >
+                    {stage.status}
+                  </span>
                 </div>
-                <span
-                  className={`px-2 py-1 rounded text-[10px] font-mono uppercase border ${
-                    stage.status === 'complete'
-                      ? 'border-emerald-800 text-emerald-300 bg-emerald-950/30'
-                      : stage.status === 'running'
-                      ? 'border-amber-800 text-amber-300 bg-amber-950/30'
-                      : 'border-slate-700 text-slate-400 bg-slate-900'
-                  }`}
-                >
-                  {stage.status}
-                </span>
+                <h3 className="text-sm font-bold text-slate-100 mt-3">{stage.title[language]}</h3>
+                <ul className="mt-3 space-y-1.5 text-[11px] text-slate-400">
+                  {stage.outputs.map((item) => (
+                    <li key={item} className="flex gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-[11px] leading-relaxed text-slate-500 border-t border-slate-800 pt-3">
+                  {stage.interpretation[language]}
+                </p>
               </div>
-              <h3 className="text-sm font-bold text-slate-100 mt-3">{stage.title[language]}</h3>
-              <ul className="mt-3 space-y-1.5 text-[11px] text-slate-400">
-                {stage.outputs.map((item) => (
-                  <li key={item} className="flex gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-[11px] leading-relaxed text-slate-500 border-t border-slate-800 pt-3">
-                {stage.interpretation[language]}
-              </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </section>
       )}
 
@@ -305,6 +323,7 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
             </p>
           </div>
           </div>
+          <CohortSignalMatrix students={students} language={language} />
         </section>
       )}
 
@@ -312,8 +331,13 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
         <EarlyWarningSection students={students} highRiskStudents={highRiskStudents} summary={summary} language={language} />
       )}
 
+      {activeView === 'orchestration' && (
+        <OrchestrationSection language={language} summary={summary} />
+      )}
+
       {activeView === 'models' && (
         <section className="space-y-4">
+          <ModelLeaderboardCards models={summary.modelResults} selectedModel={selectedModel} language={language} />
           <ModelPerformanceChart models={summary.modelResults} language={language} />
           <div className="overflow-x-auto border border-slate-800 bg-[#0F1115] rounded-lg">
             <table className="w-full text-left text-xs">
@@ -363,8 +387,9 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
       )}
 
       {activeView === 'xai' && (
-        <section className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
-          <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+        <section className="space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
+            <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               <LineChart className="w-4 h-4 text-cyan-300" />
               {language === 'es' ? 'Importancia Global de Variables' : 'Global Feature Importance'}
@@ -394,7 +419,7 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
             </div>
           </div>
 
-          <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+            <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               <Network className="w-4 h-4 text-amber-300" />
               {language === 'es' ? 'Explicabilidad e Interpretación' : 'Explainability and Interpretation'}
@@ -408,11 +433,15 @@ export const AiEngineDashboard: React.FC<AiEngineDashboardProps> = ({ schools, s
               ))}
             </div>
           </div>
+          </div>
+          <XaiWaterfall features={summary.featureImportance} language={language} />
         </section>
       )}
 
       {activeView === 'admin' || activeView === 'deployment' ? (
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section className="space-y-4">
+          {activeView === 'deployment' ? <DeploymentTopology language={language} /> : <AdminGovernanceChart language={language} />}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               <Database className="w-4 h-4 text-emerald-300" />
@@ -453,6 +482,8 @@ CREATE TABLE risk_predictions (
                 'EDA con interpretación',
                 '3 modelos clásicos',
                 '2 modelos híbridos',
+                'LangChain RAG',
+                'Langflow visual',
                 'Selección del mejor modelo',
                 'Validación cruzada',
                 'Hiperparámetros',
@@ -474,11 +505,142 @@ CREATE TABLE risk_predictions (
                 : 'Interpretation: the module is ready to connect to real training and inference endpoints without changing the user experience.'}
             </p>
           </div>
+          </div>
         </section>
       ) : null}
     </div>
   );
 };
+
+function OrchestrationSection({ language, summary }: { language: Language; summary: AiEngineSummary }) {
+  const isSpanish = language === 'es';
+  const modules = [
+    {
+      name: 'LangChain',
+      status: 'READY',
+      icon: <GitBranch className="w-4 h-4" />,
+      description: isSpanish
+        ? 'Orquesta consultas RAG, memoria de conversación, herramientas del gemelo digital y respuestas con trazabilidad.'
+        : 'Orchestrates RAG queries, conversation memory, digital twin tools and traceable responses.',
+      capabilities: ['Retrieval QA', 'Tool calling', 'Prompt routing', 'Guardrails']
+    },
+    {
+      name: 'Langflow',
+      status: 'DESIGNED',
+      icon: <Network className="w-4 h-4" />,
+      description: isSpanish
+        ? 'Diseñador visual para flujos de diagnóstico, intervención, reporte y explicación SHAP antes de pasarlos a producción.'
+        : 'Visual builder for diagnosis, intervention, report and SHAP explanation flows before production handoff.',
+      capabilities: ['Visual DAG', 'Prompt templates', 'API export', 'Flow review']
+    },
+    {
+      name: 'EduTwin Tools',
+      status: 'BOUND',
+      icon: <Link2 className="w-4 h-4" />,
+      description: isSpanish
+        ? 'Conecta datos del estudiante, métricas CRISP-DM, simulación What-If y auditoría ética como herramientas invocables.'
+        : 'Binds student data, CRISP-DM metrics, What-If simulation and ethics audit as callable tools.',
+      capabilities: ['Risk score', 'Simulation', 'XAI factors', 'Fairness audit']
+    }
+  ];
+
+  const flowSteps = [
+    isSpanish ? 'Usuario consulta desde chatbot o panel IA' : 'User asks from chatbot or AI panel',
+    isSpanish ? 'LangChain normaliza intención y contexto del gemelo' : 'LangChain normalizes intent and twin context',
+    isSpanish ? 'Retrieval consulta pgvector/PostgreSQL y memoria segura' : 'Retrieval queries pgvector/PostgreSQL and safe memory',
+    isSpanish ? 'Herramientas calculan riesgo, SHAP y escenario' : 'Tools compute risk, SHAP and scenario',
+    isSpanish ? 'Langflow permite revisar y versionar el flujo' : 'Langflow enables review and versioning',
+    isSpanish ? 'Respuesta auditada vuelve al dashboard y reportes' : 'Audited response returns to dashboard and reports'
+  ];
+
+  return (
+    <section className="space-y-4">
+      <SectionIntro
+        icon={<Network className="w-5 h-5" />}
+        eyebrow={isSpanish ? 'ORQUESTACIÓN LLM Y FLUJOS VISUALES' : 'LLM ORCHESTRATION AND VISUAL FLOWS'}
+        title={isSpanish ? 'Módulos LangChain + Langflow' : 'LangChain + Langflow Modules'}
+        description={
+          isSpanish
+            ? 'Capa profesional para convertir el chatbot en un copiloto RAG gobernado, con flujos revisables antes de producción.'
+            : 'Professional layer that turns the chatbot into a governed RAG copilot with reviewable flows before production.'
+        }
+      />
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-4">
+        <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-cyan-300" />
+              {isSpanish ? 'Arquitectura de módulos' : 'Module architecture'}
+            </h3>
+            <span className="text-[10px] font-mono text-emerald-300 border border-emerald-900/70 bg-emerald-950/30 rounded px-2 py-1">
+              GOVERNED RAG
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+            {modules.map((module) => (
+              <div key={module.name} className="border border-slate-800 rounded-lg bg-slate-950/45 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-cyan-200 font-bold text-xs">
+                    {module.icon}
+                    {module.name}
+                  </div>
+                  <span className="text-[9px] font-mono text-emerald-300">{module.status}</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed mt-3">{module.description}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {module.capabilities.map((capability) => (
+                    <span key={capability} className="text-[10px] text-slate-300 border border-slate-800 rounded px-2 py-1 bg-slate-900/80">
+                      {capability}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-lg border border-cyan-900/50 bg-cyan-950/10 p-3">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">
+              {isSpanish ? 'Contrato backend habilitado' : 'Enabled backend contract'}
+            </div>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+              <code className="rounded bg-slate-950 border border-slate-800 p-2 text-cyan-200">GET /api/ai/orchestration/status</code>
+              <code className="rounded bg-slate-950 border border-slate-800 p-2 text-cyan-200">POST /api/chat</code>
+              <code className="rounded bg-slate-950 border border-slate-800 p-2 text-cyan-200">LANGFLOW_ENDPOINT</code>
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+          <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-amber-300" />
+            {isSpanish ? 'Flujo operativo' : 'Operational flow'}
+          </h3>
+          <div className="mt-4 space-y-3">
+            {flowSteps.map((step, index) => (
+              <div key={step} className="grid grid-cols-[2rem_1fr] gap-3 items-start">
+                <div className="w-8 h-8 rounded bg-slate-800 border border-slate-700 text-cyan-300 flex items-center justify-center font-mono text-[10px]">
+                  {String(index + 1).padStart(2, '0')}
+                </div>
+                <div className="border border-slate-800 rounded-lg bg-slate-950/45 p-3 text-xs text-slate-300">
+                  {step}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <MetricTile icon={<Network className="w-4 h-4" />} label="Langflow" value="3 flujos" hint={isSpanish ? 'diagnóstico, intervención, reporte' : 'diagnosis, intervention, report'} tone="cyan" />
+        <MetricTile icon={<GitBranch className="w-4 h-4" />} label="LangChain" value="4 tools" hint={isSpanish ? 'twin, riesgo, xai, ética' : 'twin, risk, xai, ethics'} tone="emerald" />
+        <MetricTile icon={<DatabaseZap className="w-4 h-4" />} label="RAG" value={`${summary.featureCount} señales`} hint="pgvector ready" tone="amber" />
+        <MetricTile icon={<ShieldCheck className="w-4 h-4" />} label="Governance" value="Audit on" hint={isSpanish ? 'PII minimizada' : 'PII minimized'} tone="rose" />
+      </div>
+    </section>
+  );
+}
 
 function DataIntakeSection({
   language,
@@ -528,6 +690,7 @@ function DataIntakeSection({
         </div>
         <div className="space-y-4">
           <DataQualityCard students={students} summary={summary} language={language} />
+          <DataSchemaChart language={language} />
           <PipelineStatusCard language={language} current="intake" />
         </div>
       </div>
@@ -537,27 +700,27 @@ function DataIntakeSection({
 
 function TrainingSection({ models, selectedModel, language }: { models: AiModelResult[]; selectedModel: AiModelResult; language: Language }) {
   const isSpanish = language === 'es';
-  return <div className="space-y-4"><SectionIntro icon={<FlaskConical className="w-5 h-5" />} eyebrow={isSpanish ? 'MODELADO PREDICTIVO' : 'PREDICTIVE MODELING'} title={isSpanish ? 'Entrenamiento de Modelos' : 'Model Training'} description={isSpanish ? 'Compara familias clásicas e híbridas para seleccionar el motor con mejor equilibrio entre rendimiento y explicabilidad.' : 'Compare classic and hybrid families to select the best balance of performance and explainability.'} /><ModelPerformanceChart models={models} language={language} /><div className="grid grid-cols-1 md:grid-cols-3 gap-3"><ProcessCard step="01" title={isSpanish ? 'Preparación' : 'Preparation'} value="18" label={isSpanish ? 'variables' : 'features'} tone="cyan" /><ProcessCard step="02" title={isSpanish ? 'Entrenamiento' : 'Training'} value={String(models.length)} label={isSpanish ? 'modelos evaluados' : 'models evaluated'} tone="violet" /><ProcessCard step="03" title={isSpanish ? 'Selección' : 'Selection'} value={fmtScore(selectedModel.rocAuc)} label="ROC AUC" tone="emerald" /></div></div>;
+  return <div className="space-y-4"><SectionIntro icon={<FlaskConical className="w-5 h-5" />} eyebrow={isSpanish ? 'MODELADO PREDICTIVO' : 'PREDICTIVE MODELING'} title={isSpanish ? 'Entrenamiento de Modelos' : 'Model Training'} description={isSpanish ? 'Compara familias clásicas e híbridas para seleccionar el motor con mejor equilibrio entre rendimiento y explicabilidad.' : 'Compare classic and hybrid families to select the best balance of performance and explainability.'} /><div className="grid grid-cols-1 xl:grid-cols-[1fr_0.78fr] gap-4"><ModelPerformanceChart models={models} language={language} /><ModelFamilyDonut models={models} selectedModel={selectedModel} language={language} /></div><div className="grid grid-cols-1 md:grid-cols-3 gap-3"><ProcessCard step="01" title={isSpanish ? 'Preparación' : 'Preparation'} value="18" label={isSpanish ? 'variables' : 'features'} tone="cyan" /><ProcessCard step="02" title={isSpanish ? 'Entrenamiento' : 'Training'} value={String(models.length)} label={isSpanish ? 'modelos evaluados' : 'models evaluated'} tone="violet" /><ProcessCard step="03" title={isSpanish ? 'Selección' : 'Selection'} value={fmtScore(selectedModel.rocAuc)} label="ROC AUC" tone="emerald" /></div></div>;
 }
 
 function ValidationSection({ models, selectedModel, language }: { models: AiModelResult[]; selectedModel: AiModelResult; language: Language }) {
   const isSpanish = language === 'es';
-  return <div className="space-y-4"><SectionIntro icon={<FileCheck2 className="w-5 h-5" />} eyebrow="MODEL GOVERNANCE" title={isSpanish ? 'Diagnóstico del prototipo' : 'Prototype diagnostics'} description={isSpanish ? 'Estas métricas son internas y heurísticas; la validación cruzada real requiere etiquetas históricas de abandono.' : 'These are internal heuristic diagnostics; real cross-validation requires historical dropout labels.'} /><div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-4"><div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-100">{isSpanish ? 'AUC orientativo por modelo' : 'Indicative AUC by model'}</h3><span className="text-[10px] font-mono text-amber-300">NO VALIDADO</span></div><div className="mt-5 space-y-4">{models.map((model) => <ConfidenceBar key={model.id} label={model.name} value={model.crossValidationMean} deviation={model.crossValidationStd} winner={model.id === selectedModel.id} />)}</div></div><RocCurve language={language} auc={selectedModel.rocAuc} /></div></div>;
+  return <div className="space-y-4"><SectionIntro icon={<FileCheck2 className="w-5 h-5" />} eyebrow="MODEL GOVERNANCE" title={isSpanish ? 'Diagnóstico del prototipo' : 'Prototype diagnostics'} description={isSpanish ? 'Estas métricas son internas y heurísticas; la validación cruzada real requiere etiquetas históricas de abandono.' : 'These are internal heuristic diagnostics; real cross-validation requires historical dropout labels.'} /><div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr] gap-4"><div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-100">{isSpanish ? 'AUC orientativo por modelo' : 'Indicative AUC by model'}</h3><span className="text-[10px] font-mono text-amber-300">NO VALIDADO</span></div><div className="mt-5 space-y-4">{models.map((model) => <ConfidenceBar key={model.id} label={model.name} value={model.crossValidationMean} deviation={model.crossValidationStd} winner={model.id === selectedModel.id} />)}</div></div><RocCurve language={language} auc={selectedModel.rocAuc} /></div><CalibrationBars models={models} language={language} /></div>;
 }
 
 function TuningSection({ model, language }: { model: AiModelResult; language: Language }) {
   const isSpanish = language === 'es';
-  return <div className="space-y-4"><SectionIntro icon={<SlidersHorizontal className="w-5 h-5" />} eyebrow="OPTIMIZACIÓN" title={isSpanish ? 'Ajuste de Hiperparámetros' : 'Hyperparameter Tuning'} description={isSpanish ? 'Explora la configuración ganadora y el impacto del ajuste sobre el rendimiento del modelo.' : 'Inspect the winning configuration and tuning impact on model performance.'} /><div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4"><div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5"><h3 className="text-sm font-bold text-slate-100 flex items-center gap-2"><Settings2 className="w-4 h-4 text-cyan-300" />{model.name}</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">{Object.entries(model.hyperparameters).map(([key, value]) => <div key={key} className="rounded-lg border border-slate-700 bg-slate-950/40 p-3"><div className="text-[10px] uppercase tracking-wider text-slate-500">{key}</div><div className="mt-1 font-mono text-cyan-200 text-sm">{String(value)}</div></div>)}</div></div><TuningChart language={language} /></div></div>;
+  return <div className="space-y-4"><SectionIntro icon={<SlidersHorizontal className="w-5 h-5" />} eyebrow="OPTIMIZACIÓN" title={isSpanish ? 'Ajuste de Hiperparámetros' : 'Hyperparameter Tuning'} description={isSpanish ? 'Explora la configuración ganadora y el impacto del ajuste sobre el rendimiento del modelo.' : 'Inspect the winning configuration and tuning impact on model performance.'} /><div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4"><div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5"><h3 className="text-sm font-bold text-slate-100 flex items-center gap-2"><Settings2 className="w-4 h-4 text-cyan-300" />{model.name}</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">{Object.entries(model.hyperparameters).map(([key, value]) => <div key={key} className="rounded-lg border border-slate-700 bg-slate-950/40 p-3"><div className="text-[10px] uppercase tracking-wider text-slate-500">{key}</div><div className="mt-1 font-mono text-cyan-200 text-sm">{String(value)}</div></div>)}</div></div><TuningChart language={language} /></div><HyperparameterRadar model={model} language={language} /></div>;
 }
 
 function StatisticalSection({ model, language }: { model: AiModelResult; language: Language }) {
   const isSpanish = language === 'es';
-  return <div className="space-y-4"><SectionIntro icon={<Sigma className="w-5 h-5" />} eyebrow="INFERENCIA Y SIGNIFICANCIA" title={isSpanish ? 'Pruebas Estadísticas' : 'Statistical Tests'} description={isSpanish ? 'El Brier score se calcula como diagnóstico interno; p-value e intervalos quedan pendientes de un conjunto etiquetado.' : 'Brier score is shown as an internal diagnostic; p-value and intervals require a labeled dataset.'} /><div className="grid grid-cols-1 md:grid-cols-3 gap-3"><MetricTile icon={<Sigma className="w-4 h-4" />} label="p-value" value="N/D" hint={isSpanish ? 'Requiere etiquetas reales' : 'Requires real labels'} tone="amber" /><MetricTile icon={<Target className="w-4 h-4" />} label="Brier score" value={model.brierScore.toFixed(3)} hint={isSpanish ? 'Diagnóstico interno' : 'Internal diagnostic'} tone="cyan" /><MetricTile icon={<ShieldCheck className="w-4 h-4" />} label="IC 95%" value="N/D" hint={isSpanish ? 'Requiere validación' : 'Requires validation'} tone="amber" /></div><StatisticalChart model={model} language={language} /></div>;
+  return <div className="space-y-4"><SectionIntro icon={<Sigma className="w-5 h-5" />} eyebrow="INFERENCIA Y SIGNIFICANCIA" title={isSpanish ? 'Pruebas Estadísticas' : 'Statistical Tests'} description={isSpanish ? 'El Brier score se calcula como diagnóstico interno; p-value e intervalos quedan pendientes de un conjunto etiquetado.' : 'Brier score is shown as an internal diagnostic; p-value and intervals require a labeled dataset.'} /><div className="grid grid-cols-1 md:grid-cols-3 gap-3"><MetricTile icon={<Sigma className="w-4 h-4" />} label="p-value" value="N/D" hint={isSpanish ? 'Requiere etiquetas reales' : 'Requires real labels'} tone="amber" /><MetricTile icon={<Target className="w-4 h-4" />} label="Brier score" value={model.brierScore.toFixed(3)} hint={isSpanish ? 'Diagnóstico interno' : 'Internal diagnostic'} tone="cyan" /><MetricTile icon={<ShieldCheck className="w-4 h-4" />} label="IC 95%" value="N/D" hint={isSpanish ? 'Requiere validación' : 'Requires validation'} tone="amber" /></div><div className="grid grid-cols-1 xl:grid-cols-[1fr_0.9fr] gap-4"><StatisticalChart model={model} language={language} /><StatisticalDiagnosticsGrid model={model} language={language} /></div></div>;
 }
 
 function EarlyWarningSection({ students, highRiskStudents, summary, language }: { students: Student[]; highRiskStudents: Student[]; summary: AiEngineSummary; language: Language }) {
   const isSpanish = language === 'es';
-  return <div className="space-y-4"><SectionIntro icon={<AlertOctagon className="w-5 h-5" />} eyebrow="OPERACIÓN EN TIEMPO CASI REAL" title={isSpanish ? 'Modelo de Alerta Temprana' : 'Early Warning Model'} description={isSpanish ? 'Prioriza con la puntuación del modelo seleccionado. En esta versión sigue siendo un prototipo heurístico.' : 'Prioritizes using the selected model score. This version remains a heuristic prototype.'} /><div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-4"><RiskDistribution students={students} predictions={summary.studentPredictions} threshold={summary.alertThreshold} language={language} /><div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-100">{isSpanish ? 'Cola priorizada' : 'Priority queue'}</h3><span className="text-[10px] font-mono text-rose-300">{highRiskStudents.length} ALERTAS</span></div><div className="mt-4 space-y-2">{highRiskStudents.slice(0, 6).map((student, index) => <div key={student.idHash} className="flex items-center gap-3 border-b border-slate-800/80 pb-2"><span className="font-mono text-[10px] text-slate-500">0{index + 1}</span><div className="min-w-0 flex-1"><div className="text-xs text-slate-200 truncate">{student.anonymousId}</div><div className="text-[10px] text-slate-500 truncate">{student.schoolName}</div></div><div className="text-xs font-mono text-rose-300">{fmtPct(summary.studentPredictions[student.idHash] ?? student.dropoutProbability)}</div><ChevronRight className="w-3.5 h-3.5 text-slate-600" /></div>)}{highRiskStudents.length === 0 && <EmptyState label={isSpanish ? 'No hay estudiantes sobre el umbral.' : 'No students exceed the threshold.'} />}</div></div></div></div>;
+  return <div className="space-y-4"><SectionIntro icon={<AlertOctagon className="w-5 h-5" />} eyebrow="OPERACIÓN EN TIEMPO CASI REAL" title={isSpanish ? 'Modelo de Alerta Temprana' : 'Early Warning Model'} description={isSpanish ? 'Prioriza con la puntuación del modelo seleccionado. En esta versión sigue siendo un prototipo heurístico.' : 'Prioritizes using the selected model score. This version remains a heuristic prototype.'} /><div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-4"><RiskDistribution students={students} predictions={summary.studentPredictions} threshold={summary.alertThreshold} language={language} /><div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5"><div className="flex items-center justify-between"><h3 className="text-sm font-bold text-slate-100">{isSpanish ? 'Cola priorizada' : 'Priority queue'}</h3><span className="text-[10px] font-mono text-rose-300">{highRiskStudents.length} ALERTAS</span></div><div className="mt-4 space-y-2">{highRiskStudents.slice(0, 6).map((student, index) => <div key={student.idHash} className="flex items-center gap-3 border-b border-slate-800/80 pb-2"><span className="font-mono text-[10px] text-slate-500">0{index + 1}</span><div className="min-w-0 flex-1"><div className="text-xs text-slate-200 truncate">{student.anonymousId}</div><div className="text-[10px] text-slate-500 truncate">{student.schoolName}</div></div><div className="text-xs font-mono text-rose-300">{fmtPct(summary.studentPredictions[student.idHash] ?? student.dropoutProbability)}</div><ChevronRight className="w-3.5 h-3.5 text-slate-600" /></div>)}{highRiskStudents.length === 0 && <EmptyState label={isSpanish ? 'No hay estudiantes sobre el umbral.' : 'No students exceed the threshold.'} />}</div></div></div><AlertHeatmap students={students} predictions={summary.studentPredictions} language={language} /></div>;
 }
 
 function SectionIntro({ icon, eyebrow, title, description }: { icon: React.ReactNode; eyebrow: string; title: string; description: string }) {
@@ -746,6 +909,284 @@ function ContributionChart({ values }: { values: number[] }) {
       <path d={path} fill="rgba(34,211,238,0.18)" stroke="#22d3ee" strokeWidth="1.5" />
       {points.map(([x, y], index) => <circle key={index} cx={x} cy={y} r="1.8" fill="#f59e0b" />)}
     </svg>
+  );
+}
+
+function CrispDmFlowMap({ stages, language }: { stages: CrispDmStage[]; language: Language }) {
+  return (
+    <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4 overflow-hidden">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <GitBranch className="w-4 h-4 text-cyan-300" />
+          {language === 'es' ? 'Mapa operativo CRISP-DM' : 'CRISP-DM operating map'}
+        </h3>
+        <span className="text-[10px] font-mono text-emerald-300">6 STAGES</span>
+      </div>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-6 gap-2">
+        {stages.map((stage, index) => (
+          <div key={stage.id} className="relative rounded-lg border border-slate-800 bg-slate-950/50 p-3 min-h-28">
+            <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-lg ${stage.status === 'complete' ? 'bg-emerald-400' : stage.status === 'running' ? 'bg-amber-400' : 'bg-slate-500'}`} />
+            <div className="font-mono text-[10px] text-slate-500">0{index + 1}</div>
+            <div className="mt-2 text-xs font-bold text-slate-100">{stage.title[language]}</div>
+            <div className="mt-3 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+              <div className={`h-full ${stage.status === 'ready' ? 'bg-slate-500' : stage.status === 'running' ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: stage.status === 'ready' ? '42%' : stage.status === 'running' ? '72%' : '100%' }} />
+            </div>
+            <div className="mt-2 text-[10px] uppercase font-mono text-slate-500">{stage.status}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CohortSignalMatrix({ students, language }: { students: Student[]; language: Language }) {
+  const isSpanish = language === 'es';
+  const rows = [
+    { label: isSpanish ? 'Asistencia' : 'Attendance', values: students.map((student) => student.attendanceRate), invert: true },
+    { label: isSpanish ? 'Rendimiento' : 'Performance', values: students.map((student) => student.gpa * 5), invert: true },
+    { label: isSpanish ? 'Distancia' : 'Distance', values: students.map((student) => Math.min(100, student.distanceKm * 14)), invert: false },
+    { label: isSpanish ? 'Trabajo' : 'Workload', values: students.map((student) => Math.min(100, student.workBurdenHoursWeekly * 4)), invert: false },
+    { label: isSpanish ? 'Pobreza' : 'Poverty', values: students.map((student) => student.householdPovertyIndex * 10), invert: false }
+  ];
+  return (
+    <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+          <DatabaseZap className="w-4 h-4 text-cyan-300" />
+          {isSpanish ? 'Matriz de señales por cohorte' : 'Cohort signal matrix'}
+        </h3>
+        <span className="text-[10px] font-mono text-slate-500">{students.length} ROWS</span>
+      </div>
+      <div className="mt-4 space-y-2">
+        {rows.map((row) => (
+          <div key={row.label} className="grid grid-cols-[7rem_1fr] gap-3 items-center">
+            <span className="text-[11px] text-slate-400">{row.label}</span>
+            <div className="grid grid-cols-6 gap-1">
+              {row.values.slice(0, 6).map((value, index) => {
+                const normalized = row.invert ? 100 - value : value;
+                const color = normalized > 68 ? 'bg-rose-400' : normalized > 38 ? 'bg-amber-400' : 'bg-emerald-400';
+                return <div key={`${row.label}-${index}`} title={`${row.label}: ${value.toFixed(1)}`} className={`h-7 rounded border border-slate-900 ${color}`} style={{ opacity: 0.35 + clampWidth(normalized) / 150 }} />;
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DataSchemaChart({ language }: { language: Language }) {
+  const isSpanish = language === 'es';
+  const nodes = [
+    ['SIS', isSpanish ? 'Matrícula' : 'Enrollment'],
+    ['LMS', isSpanish ? 'Asistencia' : 'Attendance'],
+    ['GEO', isSpanish ? 'Territorio' : 'Territory'],
+    ['FAM', isSpanish ? 'Hogar' : 'Household']
+  ];
+  return (
+    <div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5">
+      <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+        <FileSpreadsheet className="w-4 h-4 text-cyan-300" />
+        {isSpanish ? 'Esquema de ingesta' : 'Ingestion schema'}
+      </h3>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {nodes.map(([code, label]) => (
+          <div key={code} className="rounded-lg border border-slate-700 bg-slate-950/40 p-3">
+            <div className="text-[10px] font-mono text-cyan-300">{code}</div>
+            <div className="text-xs text-slate-200 mt-1">{label}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+        <div className="h-full bg-cyan-400" style={{ width: '72%' }} />
+      </div>
+      <p className="mt-2 text-[11px] text-slate-500">{isSpanish ? 'Normalización, validación de rangos y hash de identidad antes del modelado.' : 'Normalization, range validation and identity hashing before modeling.'}</p>
+    </div>
+  );
+}
+
+function ModelFamilyDonut({ models, selectedModel, language }: { models: AiModelResult[]; selectedModel: AiModelResult; language: Language }) {
+  const classic = models.filter((model) => model.family === 'classic').length;
+  const hybrid = models.length - classic;
+  const hybridPct = hybrid / Math.max(1, models.length);
+  const dash = `${(hybridPct * 100).toFixed(1)} ${((1 - hybridPct) * 100).toFixed(1)}`;
+  return (
+    <div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5">
+      <h3 className="text-sm font-bold text-slate-100">{language === 'es' ? 'Familias evaluadas' : 'Evaluated families'}</h3>
+      <div className="mt-4 grid grid-cols-[9rem_1fr] gap-4 items-center">
+        <svg viewBox="0 0 120 120" className="w-32 h-32">
+          <circle cx="60" cy="60" r="42" fill="none" stroke="#1e293b" strokeWidth="18" />
+          <circle cx="60" cy="60" r="42" fill="none" stroke="#22d3ee" strokeWidth="18" strokeDasharray={dash} pathLength="100" transform="rotate(-90 60 60)" />
+          <text x="60" y="57" textAnchor="middle" fill="#e2e8f0" fontSize="18" fontWeight="700">{models.length}</text>
+          <text x="60" y="74" textAnchor="middle" fill="#64748b" fontSize="10">models</text>
+        </svg>
+        <div className="space-y-3">
+          <MiniStat value={String(classic)} label={language === 'es' ? 'clásicos' : 'classic'} />
+          <MiniStat value={String(hybrid)} label={language === 'es' ? 'híbridos' : 'hybrid'} />
+          <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/20 p-3">
+            <div className="text-[10px] uppercase text-slate-500">{language === 'es' ? 'ganador' : 'winner'}</div>
+            <div className="text-xs text-cyan-200 mt-1">{selectedModel.name}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CalibrationBars({ models, language }: { models: AiModelResult[]; language: Language }) {
+  return (
+    <div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5">
+      <h3 className="text-sm font-bold text-slate-100">{language === 'es' ? 'Calibración comparada' : 'Comparative calibration'}</h3>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
+        {models.map((model) => (
+          <div key={model.id} className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+            <div className="text-[10px] text-slate-500 truncate" title={model.name}>{model.name}</div>
+            <div className="mt-3 h-24 flex items-end gap-1">
+              {[model.rocAuc, model.f1Score, model.precisionAtK].map((value, index) => (
+                <div key={index} className="flex-1 rounded-t bg-cyan-400/80" style={{ height: `${clampWidth(value * 100)}%` }} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HyperparameterRadar({ model, language }: { model: AiModelResult; language: Language }) {
+  const values = Object.values(model.hyperparameters).slice(0, 6).map((value, index) => {
+    if (typeof value === 'number') return Math.min(1, Math.abs(value) / (Math.abs(value) + 10));
+    if (typeof value === 'boolean') return value ? 0.82 : 0.32;
+    return 0.46 + index * 0.07;
+  });
+  return (
+    <div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5">
+      <h3 className="text-sm font-bold text-slate-100">{language === 'es' ? 'Perfil de configuración' : 'Configuration profile'}</h3>
+      <ContributionChart values={values.length ? values : [0.4, 0.5, 0.7, 0.6]} />
+      <p className="text-[11px] text-slate-500 mt-2">{language === 'es' ? 'La forma resume complejidad, regularización y sensibilidad del modelo seleccionado.' : 'The shape summarizes complexity, regularization and sensitivity of the selected model.'}</p>
+    </div>
+  );
+}
+
+function StatisticalDiagnosticsGrid({ model, language }: { model: AiModelResult; language: Language }) {
+  const diagnostics = [
+    { label: 'ROC AUC', value: model.rocAuc, tone: 'bg-cyan-400' },
+    { label: 'F1', value: model.f1Score, tone: 'bg-emerald-400' },
+    { label: 'Recall', value: model.recall, tone: 'bg-amber-400' },
+    { label: 'Brier', value: 1 - model.brierScore, tone: 'bg-rose-400' }
+  ];
+  return (
+    <div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5">
+      <h3 className="text-sm font-bold text-slate-100">{language === 'es' ? 'Diagnóstico multivariable' : 'Multivariate diagnostics'}</h3>
+      <div className="mt-5 space-y-4">
+        {diagnostics.map((item) => (
+          <div key={item.label}>
+            <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+              <span>{item.label}</span>
+              <span className="font-mono">{fmtScore(item.value)}</span>
+            </div>
+            <div className="h-2 rounded bg-slate-800 overflow-hidden"><div className={`h-full ${item.tone}`} style={{ width: `${clampWidth(item.value * 100)}%` }} /></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AlertHeatmap({ students, predictions, language }: { students: Student[]; predictions: Record<string, number>; language: Language }) {
+  return (
+    <div className="border border-slate-700/70 bg-[#111827]/75 rounded-xl p-5">
+      <h3 className="text-sm font-bold text-slate-100">{language === 'es' ? 'Mapa térmico de prioridad' : 'Priority heatmap'}</h3>
+      <div className="mt-4 grid grid-cols-6 gap-2">
+        {students.slice(0, 18).map((student) => {
+          const risk = predictions[student.idHash] ?? student.dropoutProbability;
+          const tone = risk >= 0.7 ? 'bg-rose-400' : risk >= 0.45 ? 'bg-amber-400' : 'bg-emerald-400';
+          return <div key={student.idHash} className={`h-12 rounded-lg border border-slate-900 ${tone} flex items-end justify-center text-[9px] font-mono text-slate-950 pb-1`} style={{ opacity: 0.45 + risk * 0.5 }}>{Math.round(risk * 100)}</div>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ModelLeaderboardCards({ models, selectedModel, language }: { models: AiModelResult[]; selectedModel: AiModelResult; language: Language }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {models.slice(0, 3).map((model, index) => (
+        <div key={model.id} className={`rounded-lg border p-4 ${model.id === selectedModel.id ? 'border-cyan-700 bg-cyan-950/20' : 'border-slate-800 bg-[#0F1115]'}`}>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono text-slate-500">RANK 0{index + 1}</span>
+            <span className="text-[10px] text-cyan-300">{model.family.toUpperCase()}</span>
+          </div>
+          <div className="mt-2 text-sm font-bold text-slate-100">{model.name}</div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <MiniStat value={fmtScore(model.rocAuc)} label="AUC" />
+            <MiniStat value={fmtScore(model.f1Score)} label="F1" />
+            <MiniStat value={fmtScore(model.precisionAtK)} label="P@K" />
+          </div>
+          <p className="mt-3 text-[11px] text-slate-500">{language === 'es' ? model.interpretation : model.purpose}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function XaiWaterfall({ features, language }: { features: FeatureImportance[]; language: Language }) {
+  return (
+    <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+      <h3 className="text-sm font-bold text-slate-100">{language === 'es' ? 'Cascada de contribuciones SHAP' : 'SHAP contribution waterfall'}</h3>
+      <div className="mt-4 space-y-3">
+        {features.map((feature, index) => (
+          <div key={feature.featureKey} className="grid grid-cols-[9rem_1fr_auto] gap-3 items-center">
+            <span className="text-[11px] text-slate-400 truncate">{feature.label[language]}</span>
+            <div className="h-3 rounded bg-slate-800 overflow-hidden">
+              <div className={feature.direction === 'risk' ? 'h-full bg-rose-400' : 'h-full bg-emerald-400'} style={{ width: `${clampWidth(feature.importance * 100)}%`, marginLeft: `${Math.min(index * 3, 18)}%` }} />
+            </div>
+            <span className="text-[10px] font-mono text-slate-500">{fmtPct(feature.importance)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DeploymentTopology({ language }: { language: Language }) {
+  const nodes = ['React UI', 'Express API', 'LangChain', 'Langflow', 'PostgreSQL', 'Redis'];
+  return (
+    <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+      <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2"><Server className="w-4 h-4 text-cyan-300" />{language === 'es' ? 'Topología de despliegue' : 'Deployment topology'}</h3>
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-6 gap-3">
+        {nodes.map((node, index) => (
+          <div key={node} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-center">
+            <div className={`mx-auto h-2 w-2 rounded-full ${index < 4 ? 'bg-cyan-400' : 'bg-emerald-400'}`} />
+            <div className="mt-2 text-xs font-bold text-slate-200">{node}</div>
+            <div className="text-[10px] text-slate-500 mt-1">{index < 2 ? 'edge' : index < 4 ? 'ai' : 'data'}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminGovernanceChart({ language }: { language: Language }) {
+  const items = [
+    [language === 'es' ? 'Privacidad' : 'Privacy', 92],
+    [language === 'es' ? 'Auditoría' : 'Audit', 88],
+    [language === 'es' ? 'Trazabilidad' : 'Traceability', 84],
+    [language === 'es' ? 'Operación' : 'Operations', 79]
+  ] as const;
+  return (
+    <div className="border border-slate-800 bg-[#0F1115] rounded-lg p-4">
+      <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-emerald-300" />{language === 'es' ? 'Gobernanza operacional' : 'Operational governance'}</h3>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+        {items.map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+            <div className="text-[10px] uppercase text-slate-500">{label}</div>
+            <div className="text-xl font-bold text-slate-100 mt-1">{value}%</div>
+            <div className="mt-2 h-2 rounded bg-slate-800 overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${value}%` }} /></div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

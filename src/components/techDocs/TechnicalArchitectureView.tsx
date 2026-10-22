@@ -24,7 +24,7 @@ interface TechnicalArchitectureViewProps {
 export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps> = ({
   language
 }) => {
-  const t = translations[language];
+  const t = translations[language].techDocs;
   const [activeTab, setActiveTab] = useState<'architecture' | 'api' | 'mlPipeline' | 'docker'>('architecture');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [apiResponse, setApiResponse] = useState<string | null>(null);
@@ -85,10 +85,10 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
             <span>Full-Stack Architecture & API Deliverables</span>
           </div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            {t.architecture.title}
+            {t.title}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-3xl">
-            {t.architecture.subtitle}
+            {t.subtitle}
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span>{t.architecture.diagram}</span>
+            <span>{t.tabs.architecture}</span>
           </button>
 
           <button
@@ -115,7 +115,7 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
             }`}
           >
             <Server className="w-3.5 h-3.5" />
-            <span>{t.architecture.apiSpecs}</span>
+            <span>API</span>
           </button>
 
           <button
@@ -127,7 +127,7 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
             }`}
           >
             <Cpu className="w-3.5 h-3.5" />
-            <span>{t.architecture.mlModels}</span>
+            <span>{t.tabs.mlDocs}</span>
           </button>
 
           <button
@@ -146,7 +146,7 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
 
       {/* Tab 1: Full System Architecture Diagram */}
       {activeTab === 'architecture' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           {/* Frontend Layer */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
             <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
@@ -222,6 +222,25 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
               <li>Detección temprana multivariable</li>
             </ul>
           </div>
+
+          {/* LLM Orchestration Layer */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-950/60 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold">
+              5
+            </div>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+              LangChain + Langflow
+            </h4>
+            <p className="text-xs text-slate-500">
+              Orquestación RAG, tool-calling y flujos visuales gobernados.
+            </p>
+            <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-disc pl-4">
+              <li>Copiloto con contexto del gemelo digital</li>
+              <li>Flujos visuales de diagnóstico e intervención</li>
+              <li>RAG sobre PostgreSQL/pgvector</li>
+              <li>Auditoría de respuestas y PII minimizada</li>
+            </ul>
+          </div>
         </div>
       )}
 
@@ -270,6 +289,43 @@ export const TechnicalArchitectureView: React.FC<TechnicalArchitectureViewProps>
                 </pre>
               </div>
             )}
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="px-2.5 py-1 rounded-md bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300 font-mono text-xs font-bold">
+                  GET /api/ai/orchestration/status
+                </span>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+                  Estado LangChain + Langflow
+                </h4>
+              </div>
+              <Zap className="w-4 h-4 text-cyan-500" />
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Expone módulos activos, herramientas conectadas, flujos Langflow esperados, política de pseudonimización y límites de uso del copiloto IA.
+            </p>
+
+            <pre className="p-4 bg-slate-950 text-cyan-300 font-mono text-xs rounded-xl overflow-x-auto max-h-56">
+{`{
+  "status": "ready",
+  "modules": {
+    "langchain": {
+      "mode": "rag-tool-orchestration",
+      "tools": ["digital_twin_context", "dropout_risk_score", "shap_explainability"]
+    },
+    "langflow": {
+      "flows": ["school_diagnosis", "intervention_simulation", "xai_report_generation"]
+    }
+  },
+  "governance": {
+    "piiPolicy": "pseudonymized-context",
+    "auditTrail": true
+  }
+}`}
+            </pre>
           </div>
         </div>
       )}
@@ -356,6 +412,16 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  langflow:
+    image: langflowai/langflow:latest
+    ports:
+      - "7860:7860"
+    environment:
+      - LANGFLOW_AUTO_LOGIN=false
+      - LANGFLOW_DATABASE_URL=\${DATABASE_URL}
+    depends_on:
+      - postgres-db
 
 volumes:
   edutwin_pgdata:`}

@@ -1,0 +1,1 @@
+"""EduTwin FastAPI backend package."""

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { School, Student, SimulationParameters, Language, ReportConfig } from '../../types';
 import { translations } from '../../i18n/translations';
 import { buildAiEngineSummary, evaluateScenarioImpact } from '../../services/mlEngine';
@@ -17,7 +17,12 @@ import {
   Building2,
   Users,
   AlertTriangle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Eye,
+  RefreshCw,
+  Loader2,
+  XCircle,
+  ExternalLink
 } from 'lucide-react';
 
 interface ReportsCenterProps {
@@ -40,12 +45,17 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
   const [selectedRiskTier, setSelectedRiskTier] = useState<string>('all');
   const [scheduledSuccess, setScheduledSuccess] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewReady, setPreviewReady] = useState<boolean>(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const generatedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     return () => {
       if (pdfPreviewUrl) {
-        URL.revokeObjectURL(pdfPreviewUrl);
+        try { URL.revokeObjectURL(pdfPreviewUrl); } catch (_) { /* ignore */ }
       }
     };
   }, [pdfPreviewUrl]);
@@ -186,61 +196,91 @@ export const ReportsCenter: React.FC<ReportsCenterProps> = ({
     return doc;
   };
 
-  const refreshPdfPreview = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      try {
-        const doc = buildPdfDocument();
-        const pdfBlob = doc.output('blob');
-        const nextPreviewUrl = URL.createObjectURL(pdfBlob);
+  const generatePdfBlob = useCallback((): Blob => {
+    const doc = buildPdfDocument();
+    const output = doc.output('blob');
+    generatedAtRef.current = Date.now();
+    return output;
+  }, [filteredStudents, schools, students, simulationParams]);
 
-        if (pdfPreviewUrl) {
-          URL.revokeObjectURL(pdfPreviewUrl);
-        }
+  const refreshPdfPreview = useCallback(() => {
+    setIsPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewReady(false);
+    try {
+      const pdfBlob = generatePdfBlob();
+      const nextPreviewUrl = URL.createObjectURL(pdfBlob);
 
-        setPdfPreviewUrl(nextPreviewUrl);
-      } catch (err) {
-        console.error('PDF preview failed:', err);
-      } finally {
-        setIsGenerating(false);
+      if (pdfPreviewUrl) {
+        try { URL.revokeObjectURL(pdfPreviewUrl); } catch (_) { /* ignore */ }
       }
-    }, 250);
-  };
+
+      setPdfPreviewUrl(nextPreviewUrl);
+      setTimeout(() => {
+        setIsPreviewLoading(false);
+        setPreviewReady(true);
+      }, 350);
+    } catch (err) {
+      console.error('PDF preview failed:', err);
+      setPreviewError(language === 'es'
+        ? 'No se pudo generar la previsualización del PDF. Intenta nuevamente.'
+        : 'Could not generate PDF preview. Please try again.');
+      setIsPreviewLoading(false);
+    }
+  }, [generatePdfBlob, pdfPreviewUrl, language]);
 
   // Generate and Download PDF using jsPDF
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = useCallback(() => {
     setIsGenerating(true);
-    setTimeout(() => {
-      try {
-        const doc = buildPdfDocument();
-        const pdfBlob = doc.output('blob');
-        const downloadUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `EduTwin_Informe_Desercion_${new Date().toISOString().slice(0, 10)}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(downloadUrl);
+    setPreviewError(null);
+    try {
+      const pdfBlob = generatePdfBlob();
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `EduTwin_Informe_Desercion_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-        const nextPreviewUrl = URL.createObjectURL(pdfBlob);
-        if (pdfPreviewUrl) {
-          URL.revokeObjectURL(pdfPreviewUrl);
-        }
-        setPdfPreviewUrl(nextPreviewUrl);
-      } catch (err) {
-        console.error('PDF export failed:', err);
-      } finally {
-        setIsGenerating(false);
+      const nextPreviewUrl = URL.createObjectURL(pdfBlob);
+      if (pdfPreviewUrl) {
+        try { URL.revokeObjectURL(pdfPreviewUrl); } catch (_) { /* ignore */ }
       }
-    }, 300);
+      setPdfPreviewUrl(nextPreviewUrl);
+      setPreviewReady(true);
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      setPreviewError(language === 'es'
+        ? 'Error al exportar el PDF. Revisa los datos e intenta de nuevo.'
+        : 'Error exporting PDF. Check data and try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [generatePdfBlob, pdfPreviewUrl, language]);
+
+  const openPdfInNewTab = () => {
+    if (!pdfPreviewUrl) return;
+    window.open(pdfPreviewUrl, '_blank', 'noopener,noreferrer,width=1000,height=800');
   };
 
   useEffect(() => {
     if (selectedFormat === 'pdf') {
       refreshPdfPreview();
+    } else {
+      setPdfPreviewUrl(null);
+      setPreviewReady(false);
     }
-  }, [selectedFormat, selectedSchoolId, selectedRiskTier, schools, students, simulationParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFormat, selectedSchoolId, selectedRiskTier]);
+
+  useEffect(() => {
+    if (selectedFormat === 'pdf') {
+      refreshPdfPreview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schools, students, simulationParams]);
 
   // Generate and Download Excel (.xlsx) using xlsx library
   const handleDownloadExcel = () => {
@@ -536,27 +576,215 @@ hashes SHA-256 conforme a las directivas de protección a menores.
       )}
 
       {selectedFormat === 'pdf' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
-              Vista previa del PDF
-            </h3>
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">
-              {pdfPreviewUrl ? 'LISTO' : 'SIN PREVIEW'}
-            </span>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-lg overflow-hidden">
+          {/* Preview header with controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500/15 to-rose-500/10 border border-red-500/25 text-red-600 dark:text-red-400 flex items-center justify-center">
+                <Eye className="w-4.5 h-4.5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+                  {language === 'es' ? 'Previsualización del Informe PDF' : 'PDF Report Preview'}
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                  {previewReady && generatedAtRef.current
+                    ? `${language === 'es' ? 'Generado' : 'Generated'}: ${new Date(generatedAtRef.current).toLocaleString()}`
+                    : isPreviewLoading
+                      ? (language === 'es' ? 'Renderizando documento...' : 'Rendering document...')
+                      : (language === 'es' ? 'Listo para generar' : 'Ready to generate')}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={refreshPdfPreview}
+                disabled={isPreviewLoading}
+                className="px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 transition flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
+                title={language === 'es' ? 'Actualizar vista previa' : 'Refresh preview'}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isPreviewLoading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{language === 'es' ? 'Actualizar' : 'Refresh'}</span>
+              </button>
+
+              <button
+                onClick={openPdfInNewTab}
+                disabled={!pdfPreviewUrl || !previewReady}
+                className="px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 transition flex items-center gap-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                title={language === 'es' ? 'Abrir PDF en nueva pestaña' : 'Open PDF in new tab'}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{language === 'es' ? 'Abrir PDF' : 'Open PDF'}</span>
+              </button>
+
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isGenerating}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md transition flex items-center gap-1.5 text-xs font-bold disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5" />
+                )}
+                <span>{language === 'es' ? 'Descargar PDF' : 'Download PDF'}</span>
+              </button>
+            </div>
           </div>
 
-          {pdfPreviewUrl ? (
-            <iframe
-              title="PDF Preview"
-              src={pdfPreviewUrl}
-              className="w-full h-[720px] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white"
-            />
-          ) : (
-            <div className="flex items-center justify-center h-[220px] rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-sm text-slate-500 dark:text-slate-400">
-              Genera el PDF para ver la vista previa aquí.
+          {/* Status indicator bar */}
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+            {isPreviewLoading && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span className="font-semibold uppercase tracking-wider">
+                  {language === 'es' ? 'Generando preview...' : 'Generating preview...'}
+                </span>
+              </div>
+            )}
+            {!isPreviewLoading && previewReady && pdfPreviewUrl && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-3 h-3" />
+                <span className="font-semibold uppercase tracking-wider">
+                  {language === 'es' ? 'PDF listo para visualizar' : 'PDF ready to view'}
+                </span>
+              </div>
+            )}
+            {previewError && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-700 dark:text-rose-400 w-full sm:w-auto">
+                <XCircle className="w-3 h-3 shrink-0" />
+                <span className="font-semibold uppercase tracking-wider truncate">{previewError}</span>
+              </div>
+            )}
+            {!isPreviewLoading && !previewReady && !pdfPreviewUrl && !previewError && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500">
+                <FileText className="w-3 h-3" />
+                <span className="font-semibold uppercase tracking-wider">
+                  {language === 'es' ? 'Inicializando...' : 'Initializing...'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* PDF iframe / loading / fallback */}
+          <div className="relative w-full h-[760px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-[#fafafa] dark:bg-slate-950">
+            {/* Loading overlay */}
+            {isPreviewLoading && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-900/70 via-slate-900/60 to-slate-900/70 backdrop-blur-sm">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full border-4 border-slate-700/60 border-t-red-500 animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-red-400" />
+                  </div>
+                </div>
+                <div className="text-center space-y-1">
+                  <p className="text-sm font-bold text-white">
+                    {language === 'es' ? 'Renderizando Informe Ejecutivo' : 'Rendering Executive Report'}
+                  </p>
+                  <p className="text-xs text-slate-300 font-mono">
+                    {language === 'es' ? 'Componiendo páginas con gráficos y datos...' : 'Composing pages with charts and data...'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Error state */}
+            {previewError && !isPreviewLoading && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 p-8 bg-rose-50 dark:bg-rose-950/20">
+                <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center">
+                  <XCircle className="w-8 h-8" />
+                </div>
+                <div className="text-center space-y-2 max-w-md">
+                  <h4 className="text-base font-bold text-rose-700 dark:text-rose-400">
+                    {language === 'es' ? 'Error al generar la previsualización' : 'Error generating preview'}
+                  </h4>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{previewError}</p>
+                </div>
+                <button
+                  onClick={refreshPdfPreview}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold flex items-center gap-2 transition shadow-md"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  {language === 'es' ? 'Reintentar Generación' : 'Retry Generation'}
+                </button>
+              </div>
+            )}
+
+            {/* Iframe content (only when ready) */}
+            {pdfPreviewUrl && !previewError && (
+              <iframe
+                ref={iframeRef}
+                title={`PDF Preview - EduTwin Report ${generatedAtRef.current ?? ''}`}
+                src={`${pdfPreviewUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
+                className={`w-full h-full bg-white transition-opacity duration-500 ${
+                  previewReady && !isPreviewLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+                onLoad={() => {
+                  setIsPreviewLoading(false);
+                  setPreviewReady(true);
+                }}
+                onError={() => {
+                  setPreviewError(language === 'es'
+                    ? 'El visor PDF no pudo cargar el documento.'
+                    : 'PDF viewer could not load the document.');
+                  setIsPreviewLoading(false);
+                }}
+                allow="download"
+              />
+            )}
+
+            {/* Empty state: no URL yet */}
+            {!pdfPreviewUrl && !isPreviewLoading && !previewError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-8 bg-slate-50 dark:bg-slate-900/60">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 border border-slate-200 dark:border-slate-600 flex items-center justify-center shadow-inner">
+                    <FileText className="w-10 h-10 text-slate-400" />
+                  </div>
+                  <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
+                    <Eye className="w-3.5 h-3.5" />
+                  </div>
+                </div>
+                <div className="text-center space-y-2 max-w-md">
+                  <h4 className="text-base font-bold text-slate-800 dark:text-slate-200">
+                    {language === 'es' ? 'Previsualización PDF lista para generar' : 'PDF preview ready to generate'}
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                    {language === 'es'
+                      ? 'La previsualización se cargará automáticamente. Haz clic en "Actualizar" para regenerar el informe con los filtros y parámetros actuales.'
+                      : 'Preview will load automatically. Click "Refresh" to regenerate the report with current filters and parameters.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={refreshPdfPreview}
+                    className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white text-sm font-bold flex items-center gap-2 transition shadow-lg"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {language === 'es' ? 'Generar Vista Previa' : 'Generate Preview'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick info about document pages (footer hint) */}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono px-1">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                {language === 'es' ? '1 Página | Formato A4' : '1 Page | A4 Format'}
+              </span>
+              <span className="hidden sm:inline">•</span>
+              <span className="hidden sm:flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                {language === 'es' ? 'Firmado digitalmente' : 'Digitally signed'}
+              </span>
             </div>
-          )}
+            <span className="text-slate-400 dark:text-slate-500">
+              {language === 'es' ? 'Tipografía: Helvetica | Escala de grises compatibilidad' : 'Font: Helvetica | Grayscale compatibility'}
+            </span>
+          </div>
         </div>
       )}
 

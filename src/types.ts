@@ -206,6 +206,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  source?: 'langflow' | 'gemini' | 'edutwin-inference-engine' | 'local-fallback';
   contextLevel?: TwinLevel;
   targetEntityId?: string;
   suggestedActions?: { label: { es: string; en: string }; actionType: string; payload?: any }[];

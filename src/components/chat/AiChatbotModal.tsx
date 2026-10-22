@@ -59,6 +59,14 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const getSourceLabel = (source?: ChatMessage['source']) => {
+    if (!source) return null;
+    if (source === 'langflow') return 'Langflow';
+    if (source === 'gemini') return 'Gemini';
+    if (source === 'local-fallback') return language === 'es' ? 'Respaldo local' : 'Local fallback';
+    return 'EduTwin local';
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
@@ -108,7 +116,8 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.reply || (language === 'es' ? 'Análisis completado.' : 'Analysis completed.'),
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        source: data.source || 'edutwin-inference-engine'
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -131,7 +140,8 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({
           language === 'es'
             ? '🤖 He procesado tu solicitud con los datos locales del gemelo 3D: Los principales determinantes de riesgo son inasistencia (>40%) y trabajo infantil. Se aconseja priorizar intervenciones en escuelas de zona periférica.'
             : '🤖 Processed your query with 3D twin data: Key dropout drivers are absenteeism (>40%) and child work. Targeted meal aid is strongly advised.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        source: 'local-fallback'
       };
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -187,6 +197,7 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {messages.map((msg) => {
             const isMe = msg.role === 'user';
+            const sourceLabel = getSourceLabel(msg.source);
 
             return (
               <div
@@ -207,13 +218,20 @@ export const AiChatbotModal: React.FC<AiChatbotModalProps> = ({
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
-                  <span
-                    className={`block text-[10px] mt-1 text-right ${
-                      isMe ? 'text-sky-200' : 'text-slate-400'
-                    }`}
-                  >
-                    {msg.timestamp}
-                  </span>
+                  <div className={`mt-2 flex items-center gap-2 ${isMe ? 'justify-end' : 'justify-between'}`}>
+                    {!isMe && sourceLabel && (
+                      <span className="rounded-full border border-slate-200 bg-white/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-400">
+                        {sourceLabel}
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] ${
+                        isMe ? 'text-sky-200' : 'text-slate-400'
+                      }`}
+                    >
+                      {msg.timestamp}
+                    </span>
+                  </div>
                 </div>
 
                 {isMe && (
