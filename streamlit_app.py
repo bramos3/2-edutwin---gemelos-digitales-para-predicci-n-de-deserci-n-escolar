@@ -15,6 +15,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
+import plotly.io as pio
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -1424,6 +1425,131 @@ def _explanation(title: str, text: str) -> None:
     )
 
 
+@st.cache_data(show_spinner=False, max_entries=12)
+def _render_chart_export(figure_json: str, export_format: str) -> bytes:
+    """Render publication-ready chart files; raster exports carry explicit 600-DPI metadata."""
+    figure = pio.from_json(figure_json)
+    source_width = int(figure.layout.width or 1200)
+    source_height = int(figure.layout.height or 600)
+    export_width = 2400
+    export_height = max(900, round(source_height * export_width / source_width))
+
+    if export_format in {"png", "tiff"}:
+        from PIL import Image
+
+        png = figure.to_image(format="png", width=export_width, height=export_height, scale=1)
+        image = Image.open(BytesIO(png)).convert("RGB")
+        output = BytesIO()
+        if export_format == "png":
+            image.save(output, format="PNG", dpi=(600, 600))
+        else:
+            image.save(output, format="TIFF", dpi=(600, 600), compression="tiff_lzw")
+        return output.getvalue()
+
+    return figure.to_image(format=export_format, width=1800, height=max(450, round(export_height / 2)), scale=1)
+
+
+def _chart_with_exports(figure: go.Figure, chart_id: str, *, use_container_width: bool = True) -> None:
+    """Render a Plotly chart with on-demand, cached publication exports."""
+    st.plotly_chart(figure, use_container_width=use_container_width, key=f"chart_{chart_id}")
+    figure_json = figure.to_json()
+    fingerprint = hashlib.sha256(figure_json.encode("utf-8")).hexdigest()
+    export_specs = [
+        ("png", "PNG · 600 DPI", "image/png", f"EduTwin_{chart_id}_600dpi.png"),
+        ("tiff", "TIFF · 600 DPI", "image/tiff", f"EduTwin_{chart_id}_600dpi.tiff"),
+        ("pdf", "PDF · vectorial", "application/pdf", f"EduTwin_{chart_id}.pdf"),
+        ("svg", "SVG · vectorial", "image/svg+xml", f"EduTwin_{chart_id}.svg"),
+    ]
+    with st.popover("Exportar gráfico", icon="⬇"):
+        st.caption("Imagen lista para publicación o inserción en informes.")
+        for export_format, label, mime, filename in export_specs:
+            state_key = f"chart_export_{chart_id}_{export_format}"
+            prepared = st.session_state.get(state_key)
+            if prepared and prepared.get("fingerprint") == fingerprint:
+                st.download_button(
+                    f"Descargar {label}",
+                    data=prepared["data"],
+                    file_name=filename,
+                    mime=mime,
+                    key=f"download_{chart_id}_{export_format}",
+                    use_container_width=True,
+                )
+            elif st.button(
+                f"Preparar {label}",
+                key=f"prepare_{chart_id}_{export_format}",
+                use_container_width=True,
+            ):
+                try:
+                    with st.spinner(f"Preparando {label}..."):
+                        image_bytes = _render_chart_export(figure_json, export_format)
+                    st.session_state[state_key] = {"fingerprint": fingerprint, "data": image_bytes}
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"No se pudo exportar este gráfico. Verifica que Chrome esté instalado para Kaleido. Detalle: {exc}")
+
+
+def _excel_bytes(dataframes: dict[str, pd.DataFrame]) -> bytes:
+    """Create a readable workbook with frozen headers, filters and practical column widths."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        for sheet_name, dataframe in dataframes.items():
+            safe_name = re.sub(r"[\\/*?:\[\]]", "_", sheet_name)[:31] or "Resultados"
+            export_df = dataframe.copy()
+            for column in export_df.columns:
+                export_df[column] = export_df[column].map(
+                    lambda value: json.dumps(value, ensure_ascii=False, default=str)
+                    if isinstance(value, (dict, list, tuple, set)) else value
+                )
+            export_df.to_excel(writer, sheet_name=safe_name, index=False)
+            worksheet = writer.sheets[safe_name]
+            worksheet.freeze_panes = "A2"
+            if worksheet.max_column and worksheet.max_row > 1:
+                worksheet.auto_filter.ref = worksheet.dimensions
+            for cell in worksheet[1]:
+                cell.fill = PatternFill("solid", fgColor="17324D")
+                cell.font = Font(color="FFFFFF", bold=True)
+                cell.alignment = Alignment(vertical="center", wrap_text=True)
+            worksheet.row_dimensions[1].height = 30
+            for column_cells in worksheet.columns:
+                width = min(48, max(12, max(len(str(cell.value or "")) for cell in column_cells) + 2))
+                worksheet.column_dimensions[column_cells[0].column_letter].width = width
+            for row in worksheet.iter_rows(min_row=2):
+                for cell in row:
+                    if isinstance(cell.value, float):
+                        cell.number_format = "0.0000"
+    return output.getvalue()
+
+
+def _model_results_workbook(summary: dict, training: dict | None) -> bytes:
+    benchmark = pd.DataFrame(summary.get("modelResults", []))
+    trained_models = pd.DataFrame((training or {}).get("modelResults", []))
+    metadata = pd.DataFrame([((training or {}).get("metadata") or {})])
+    tests = (training or {}).get("statisticalTests") or {}
+    tests_df = pd.DataFrame(
+        [{"Prueba": key, **(value if isinstance(value, dict) else {"Resultado": value})} for key, value in tests.items()]
+    )
+    importance = pd.DataFrame(summary.get("featureImportance", []))
+    if benchmark.empty:
+        benchmark = pd.DataFrame([{"Aviso": "No hay resultados de benchmark disponibles."}])
+    if trained_models.empty:
+        trained_models = pd.DataFrame([{"Aviso": "No se ha ejecutado entrenamiento en esta sesión."}])
+    if metadata.empty or metadata.dropna(how="all").empty:
+        metadata = pd.DataFrame([{"Estado": "Sin entrenamiento ejecutado"}])
+    if tests_df.empty:
+        tests_df = pd.DataFrame([{"Aviso": "No hay pruebas estadísticas del entrenamiento."}])
+    if importance.empty:
+        importance = pd.DataFrame([{"Aviso": "No hay datos de importancia de variables."}])
+    return _excel_bytes({
+        "Benchmark": benchmark,
+        "Modelos_entrenados": trained_models,
+        "Metadatos": metadata,
+        "Pruebas_estadisticas": tests_df,
+        "Importancia_variables": importance,
+    })
+
+
 def ai_engine() -> None:
     import numpy as np
     from plotly.subplots import make_subplots
@@ -1597,7 +1723,7 @@ def ai_engine() -> None:
             fig.update_layout(template="plotly_white", height=340, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                               margin=dict(l=10, r=10, t=30, b=10))
             fig.update_yaxes(title="% Missing")
-            st.plotly_chart(fig, use_container_width=True)
+            _chart_with_exports(fig, "eda_missing_values")
         else:
             st.markdown('<span class="badge badge-emerald">✓ Sin valores faltantes</span>', unsafe_allow_html=True)
 
@@ -1629,7 +1755,7 @@ def ai_engine() -> None:
             )
         fig_hist.update_layout(template="plotly_white", height=720, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                margin=dict(l=10, r=10, t=50, b=30), bargap=0.1)
-        st.plotly_chart(fig_hist, use_container_width=True)
+        _chart_with_exports(fig_hist, "eda_distributions")
 
         _explanation(
             "los histogramas",
@@ -1655,9 +1781,11 @@ def ai_engine() -> None:
             fig_box.update_layout(template="plotly_white", height=380, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                   showlegend=False)
             if col_i % 2 == 0:
-                sc1.plotly_chart(fig_box, use_container_width=True)
+                with sc1:
+                    _chart_with_exports(fig_box, f"eda_boxplot_{col_key}")
             else:
-                sc2.plotly_chart(fig_box, use_container_width=True)
+                with sc2:
+                    _chart_with_exports(fig_box, f"eda_boxplot_{col_key}")
 
         _explanation(
             "los boxplots estratificados",
@@ -1676,7 +1804,7 @@ def ai_engine() -> None:
         )
         fig_corr.update_layout(template="plotly_white", height=540, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                margin=dict(l=10, r=10, t=30, b=10))
-        st.plotly_chart(fig_corr, use_container_width=True)
+        _chart_with_exports(fig_corr, "eda_correlation")
         _explanation(
             "la correlación",
             "<span class='threshold-rose'>|r| > 0.8</span>: multicolinealidad (<em>eliminar una</em>). "
@@ -1768,6 +1896,13 @@ def ai_engine() -> None:
 
         styled = train_df.style.apply(_style_train, subset=["AUC ROC", "F1", "Precision@K", "Recall", "Brier"]).format(precision=3)
         st.dataframe(styled, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Descargar libro de resultados de modelos (.xlsx)",
+            data=_model_results_workbook(summary, training),
+            file_name="EduTwin_Resultados_Modelos.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_training_model_results_excel",
+        )
         _explanation(
             "la tabla de entrenamiento",
             "<span class='threshold-emerald'>AUC ≥ 0.85 / F1 ≥ 0.75</span> = muy bueno · "
@@ -1790,7 +1925,7 @@ def ai_engine() -> None:
                                 legend=dict(orientation="h", y=1.12),
                                 margin=dict(l=10, r=10, t=30, b=30))
         fig_train.update_yaxes(range=[0, 1.05], gridcolor="rgba(148,163,184,0.1)")
-        st.plotly_chart(fig_train, use_container_width=True)
+        _chart_with_exports(fig_train, "training_model_comparison")
 
     # ========== TAB 4: VALIDACIÓN ==========
     with tabs[4]:
@@ -1816,7 +1951,7 @@ def ai_engine() -> None:
         fig_kfold.update_layout(template="plotly_white", height=420, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                 showlegend=False, margin=dict(l=10, r=10, t=30, b=30))
         fig_kfold.update_yaxes(range=[0.5, 1.0], gridcolor="rgba(148,163,184,0.1)")
-        st.plotly_chart(fig_kfold, use_container_width=True)
+        _chart_with_exports(fig_kfold, "validation_kfold")
         _explanation(
             "K-Fold CV",
             "Cajas <strong>pequeñas y altas</strong> = modelo estable. Mediana "
@@ -1847,7 +1982,7 @@ def ai_engine() -> None:
                                   yaxis_title="TPR (Sensibilidad / Recall)",
                                   legend=dict(orientation="v", x=0.55, y=0.1),
                                   margin=dict(l=10, r=10, t=20, b=10))
-            st.plotly_chart(fig_roc, use_container_width=True)
+            _chart_with_exports(fig_roc, "validation_roc")
 
         # PR
         with rc2:
@@ -1866,7 +2001,7 @@ def ai_engine() -> None:
                                  xaxis_title="Recall", yaxis_title="Precision",
                                  legend=dict(orientation="v", x=0.55, y=0.9),
                                  margin=dict(l=10, r=10, t=20, b=10))
-            st.plotly_chart(fig_pr, use_container_width=True)
+            _chart_with_exports(fig_pr, "validation_precision_recall")
 
         _explanation(
             "ROC vs PR",
@@ -1897,7 +2032,7 @@ def ai_engine() -> None:
             fig_cm.update_layout(template="plotly_white", height=380,
                                  paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                  margin=dict(l=10, r=10, t=20, b=10))
-            st.plotly_chart(fig_cm, use_container_width=True)
+            _chart_with_exports(fig_cm, "validation_confusion_matrix")
 
         with mc2:
             st.markdown("###### Curva de Calibración (Reliability Diagram · 10 bins)")
@@ -1921,7 +2056,7 @@ def ai_engine() -> None:
                                   yaxis_title="Frecuencia real",
                                   legend=dict(orientation="h", y=1.1),
                                   margin=dict(l=10, r=10, t=20, b=10))
-            st.plotly_chart(fig_cal, use_container_width=True)
+            _chart_with_exports(fig_cal, "validation_calibration")
 
         _explanation(
             "confusión y calibración",
@@ -1951,7 +2086,7 @@ def ai_engine() -> None:
                              yaxis_title="AUC",
                              legend=dict(orientation="h", y=1.1),
                              margin=dict(l=10, r=10, t=30, b=10))
-        st.plotly_chart(fig_lc, use_container_width=True)
+        _chart_with_exports(fig_lc, "validation_learning_curve")
         _explanation(
             "la curva de aprendizaje",
             "Cuando ambas curvas <strong>convergen</strong> (gap pequeño) el modelo está bien ajustado. "
@@ -2026,7 +2161,7 @@ def ai_engine() -> None:
                 legend=dict(orientation="h", y=1.1),
                 margin=dict(l=10, r=10, t=20, b=30)
             )
-            st.plotly_chart(fig_search, use_container_width=True)
+            _chart_with_exports(fig_search, "hyperparameters_search")
             _explanation(
                 "la búsqueda",
                 "Cada iteración prueba una configuración aleatoria. El <strong>plateau</strong> al final indica convergencia; "
@@ -2078,7 +2213,7 @@ def ai_engine() -> None:
                 xaxis=dict(gridcolor="rgba(148,163,184,0.15)"),
                 margin=dict(l=10, r=60, t=20, b=30)
             )
-            st.plotly_chart(fig_sens, use_container_width=True)
+            _chart_with_exports(fig_sens, "hyperparameters_sensitivity")
             _explanation(
                 "la sensibilidad",
                 "Barras más largas = ese hiperparámetro tiene mayor impacto en el AUC. "
@@ -2174,7 +2309,7 @@ def ai_engine() -> None:
             legend=dict(orientation="h", y=1.08, x=0.5, xanchor="center"),
             margin=dict(l=50, r=50, t=50, b=30),
         )
-        st.plotly_chart(fig_radar, use_container_width=True)
+        _chart_with_exports(fig_radar, "hyperparameters_radar")
         _explanation(
             "el radar",
             "Área <span class='threshold-emerald'>azul</span> = modelo ganador. Área roja = baseline LogReg. "
@@ -2271,7 +2406,7 @@ def ai_engine() -> None:
             plot_bgcolor="rgba(0,0,0,0)",
         )
         fig_decision.update_xaxes(tickangle=-20)
-        st.plotly_chart(fig_decision, use_container_width=True)
+        _chart_with_exports(fig_decision, "statistics_decision")
 
         st.markdown("###### Volcano Plot · ΔAUC (ganador − baseline) vs significancia")
         volcano_points = []
@@ -2295,7 +2430,7 @@ def ai_engine() -> None:
                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                              coloraxis_colorbar=dict(title="ΔAUC"),
                              margin=dict(l=10, r=10, t=30, b=30))
-        st.plotly_chart(fig_vp, use_container_width=True)
+        _chart_with_exports(fig_vp, "statistics_volcano")
         _explanation(
             "Volcano",
             "Esquina <strong>superior derecha</strong> (ΔAUC>0.02 y -log10(p)>1.3) = mejoras <em>importantes y significativas</em>. "
@@ -2319,7 +2454,7 @@ def ai_engine() -> None:
                                     paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                                     yaxis_title="N° alumnos", bargap=0.1,
                                     margin=dict(l=10, r=10, t=30, b=30))
-        st.plotly_chart(fig_risk_hist, use_container_width=True)
+        _chart_with_exports(fig_risk_hist, "early_warning_risk_distribution")
         _explanation(
             "el umbral",
             "El umbral define <strong>sensibilidad</strong>. Más bajo → más alertas (más FN evitados, más FP). "
@@ -2347,7 +2482,7 @@ def ai_engine() -> None:
         fig_shm.update_layout(template="plotly_white", height=440,
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                               margin=dict(l=10, r=10, t=20, b=10))
-        st.plotly_chart(fig_shm, use_container_width=True)
+        _chart_with_exports(fig_shm, "early_warning_school_risk_heatmap")
 
         st.markdown("###### Cola priorizada · Top 25 alumnos de alto riesgo")
         cola = student_df(students).copy()
@@ -2420,6 +2555,13 @@ def ai_engine() -> None:
 
         st.markdown("")
         st.download_button(
+            "Descargar resultados comparativos en Excel",
+            data=_model_results_workbook(summary, st.session_state.get("training_result")),
+            file_name="EduTwin_Resultados_Modelos.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_leaderboard_model_results_excel",
+        )
+        st.download_button(
             "⬇ Descargar Model Card (JSON completo)",
             data=pd.Series(summary).to_json(indent=2),
             file_name="EduTwin_AI_ModelCard.json",
@@ -2460,7 +2602,7 @@ def ai_engine() -> None:
                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                              xaxis_title="Importancia media (SHAP | Gini)",
                              yaxis_title="", margin=dict(l=10, r=10, t=30, b=30))
-        st.plotly_chart(fig_fi, use_container_width=True)
+        _chart_with_exports(fig_fi, "xai_feature_importance")
         _explanation(
             "feature importance",
             "Variables con barras largas y <strong>barras de error pequeñas</strong> son señales robustas. "
@@ -2492,7 +2634,7 @@ def ai_engine() -> None:
                                   coloraxis=dict(colorscale=[[0, "#22d3ee"], [0.5, "#f59e0b"], [1, "#f43f5e"]],
                                                  colorbar=dict(title="Valor feature\n(estandarizado)")),
                                   margin=dict(l=10, r=10, t=20, b=20))
-            st.plotly_chart(fig_bee, use_container_width=True)
+            _chart_with_exports(fig_bee, "xai_shap_beeswarm")
 
         with xc2:
             st.markdown("###### Waterfall local · Alumno de alto riesgo")
@@ -2533,7 +2675,7 @@ def ai_engine() -> None:
                                  title_font=dict(size=12, color="#94a3b8"),
                                  margin=dict(l=10, r=10, t=50, b=10),
                                  yaxis_title="P(deserción)")
-            st.plotly_chart(fig_wf, use_container_width=True)
+            _chart_with_exports(fig_wf, "xai_local_waterfall")
 
         _explanation(
             "Beeswarm y Waterfall",
